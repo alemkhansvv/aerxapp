@@ -151,7 +151,7 @@ def forecast_prophet(symbol, periods):
         forecast = model.predict(future)
 
         forecast_dates = forecast['ds'].tail(periods).dt.strftime('%Y-%m-%d').tolist()
-        forecast_values = forecast['yhat'].tail(periods).tolist()
+        forecast_values = forecast['yhat'].tail(periods).astype(np.float64).tolist()
         forecast_dict = dict(zip(forecast_dates, forecast_values))
 
         return forecast_dict
