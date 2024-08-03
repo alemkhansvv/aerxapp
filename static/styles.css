@@ -1,0 +1,29 @@
+body {
+    font-family: Arial, sans-serif;
+    background-color: #f8f9fa;
+}
+
+.container {
+    margin-top: 20px;
+}
+
+h1, h2 {
+    color: #343a40;
+}
+
+.nav-tabs .nav-link {
+    color: #495057;
+}
+
+.nav-tabs .nav-link.active {
+    color: #007bff;
+}
+
+.card-header .btn-link {
+    color: #007bff;
+    text-decoration: none;
+}
+
+.card-header .btn-link:hover {
+    text-decoration: underline;
+}

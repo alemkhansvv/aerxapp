@@ -1,0 +1,348 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Company Details</title>
+    <link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/4.5.2/css/bootstrap.min.css">
+    <style>
+        body {
+            background-color: #f8f9fa;
+            font-family: Arial, sans-serif;
+        }
+        h1, h2, h3 {
+            color: #343a40;
+        }
+        .nav-tabs .nav-link {
+            color: #007bff;
+        }
+        .nav-tabs .nav-link.active {
+            color: #495057;
+            background-color: #fff;
+            border-color: #dee2e6 #dee2e6 #fff;
+        }
+        .table th, .table td {
+            vertical-align: middle;
+        }
+        .table th {
+            background-color: #007bff;
+            color: #fff;
+        }
+        .table-striped tbody tr:nth-of-type(odd) {
+            background-color: #e9ecef;
+        }
+        .tab-content {
+            margin-top: 20px;
+        }
+        .table {
+            margin-bottom: 0;
+        }
+        .content-section {
+            margin-top: 20px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container mt-5">
+        <h1>{{ company_info['name'] }}</h1>
+        <ul class="nav nav-tabs">
+            <li class="nav-item">
+                <a class="nav-link {% if active_tab == 'company-description' %}active{% endif %}" href="#company-description" onclick="showTab(event, 'company-description')">Company Description</a>
+            </li>
+            <li class="nav-item">
+                <a class="nav-link {% if active_tab == 'historical-prices' %}active{% endif %}" href="#historical-prices" onclick="showTab(event, 'historical-prices')">Historical Prices</a>
+            </li>
+            <li class="nav-item">
+                <a class="nav-link {% if active_tab == 'latest-news' %}active{% endif %}" href="#latest-news" onclick="showTab(event, 'latest-news')">Latest News</a>
+            </li>
+            <li class="nav-item">
+                <a class="nav-link {% if active_tab == 'financials' %}active{% endif %}" href="#financials" onclick="showTab(event, 'financials')">Financials</a>
+            </li>
+            <li class="nav-item">
+                <a class="nav-link {% if active_tab == 'mathematical-analysis' %}active{% endif %}" href="#mathematical-analysis" onclick="showTab(event, 'mathematical-analysis')">Mathematical Analysis</a>
+            </li>
+            <li class="nav-item">
+                <a class="nav-link {% if active_tab == 'ai-analysis' %}active{% endif %}" href="#ai-analysis" onclick="showTab(event, 'ai-analysis')">AI Analysis</a>
+            </li>
+        </ul>
+        
+        <div id="company-description" class="tab-content mt-3 {% if active_tab != 'company-description' %}d-none{% endif %}">
+            <h2>Company Description</h2>
+            <p>{{ company_info['description'] }}</p>
+            <a href="{{ company_info['website'] }}" target="_blank">Company Website</a>
+        </div>
+        
+        <div id="historical-prices" class="tab-content mt-3 {% if active_tab != 'historical-prices' %}d-none{% endif %}">
+            <h2>Historical Prices</h2>
+            <div>{{ price_chart | safe }}</div>
+            <h3>Historical Prices Table</h3>
+            <table class="table table-striped">
+                <thead>
+                    <tr>
+                        <th>Date</th>
+                        <th>Open</th>
+                        <th>High</th>
+                        <th>Low</th>
+                        <th>Close</th>
+                        <th>Volume</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for record in historical_data %}
+                    <tr>
+                        <td>{{ record['Date'] }}</td>
+                        <td>{{ record['Open'] }}</td>
+                        <td>{{ record['High'] }}</td>
+                        <td>{{ record['Low'] }}</td>
+                        <td>{{ record['Close'] }}</td>
+                        <td>{{ record['Volume'] }}</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+        
+        <div id="latest-news" class="tab-content mt-3 {% if active_tab != 'latest-news' %}d-none{% endif %}">
+            <h2>Latest News</h2>
+            <ul class="list-group">
+                {% for article in news %}
+                <li class="list-group-item">
+                    <strong>{{ article['title'] }}</strong> - {{ article['published_at'] }}
+                    <p>{{ article['description'] }}</p>
+                    <a href="{{ article['url'] }}" target="_blank">Link</a>
+                </li>
+                {% endfor %}
+            </ul>
+        </div>
+        
+        <div id="financials" class="tab-content mt-3 {% if active_tab != 'financials' %}d-none{% endif %}">
+            <h2>Financials</h2>
+            <h3>Balance Sheet</h3>
+            <table class="table table-striped">
+                <thead>
+                    <tr>
+                        <th>Item</th>
+                        {% for date in financials['balance_sheet'].columns %}
+                        <th>{{ date }}</th>
+                        {% endfor %}
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for item in financials['balance_sheet'].index %}
+                    <tr>
+                        <td>{{ item }}</td>
+                        {% for value in financials['balance_sheet'].loc[item].values %}
+                        <td>{{ value }}</td>
+                        {% endfor %}
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+            
+            <h3>Cash Flow</h3>
+            <table class="table table-striped">
+                <thead>
+                    <tr>
+                        <th>Item</th>
+                        {% for date in financials['cashflow'].columns %}
+                        <th>{{ date }}</th>
+                        {% endfor %}
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for item in financials['cashflow'].index %}
+                    <tr>
+                        <td>{{ item }}</td>
+                        {% for value in financials['cashflow'].loc[item].values %}
+                        <td>{{ value }}</td>
+                        {% endfor %}
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+            
+            <h3>Income Statement</h3>
+            <table class="table table-striped">
+                <thead>
+                    <tr>
+                        <th>Item</th>
+                        {% for date in financials['income_statement'].columns %}
+                        <th>{{ date }}</th>
+                        {% endfor %}
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for item in financials['income_statement'].index %}
+                    <tr>
+                        <td>{{ item }}</td>
+                        {% for value in financials['income_statement'].loc[item].values %}
+                        <td>{{ value }}</td>
+                        {% endfor %}
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+
+        <div id="mathematical-analysis" class="tab-content mt-3 {% if active_tab != 'mathematical-analysis' %}d-none{% endif %}">
+            <h2>Mathematical Analysis</h2>
+            <ul class="nav nav-tabs">
+                <li class="nav-item">
+                    <a class="nav-link active" href="#black-scholes" onclick="showSubTab(event, 'black-scholes')">Black-Scholes Model</a>
+                </li>
+                <li class="nav-item">
+                    <a class="nav-link" href="#forecasting-arima" onclick="showSubTab(event, 'forecasting-arima')">Forecasting ARIMA</a>
+                </li>
+                <li class="nav-item">
+                    <a class="nav-link" href="#forecasting-prophet" onclick="showSubTab(event, 'forecasting-prophet')">Forecasting Prophet</a>
+                </li>
+            </ul>
+            
+            <div id="black-scholes" class="sub-tab-content mt-3">
+                <h3>Black-Scholes Model</h3>
+                <form action="/calculate_black_scholes" method="post">
+                    <input type="hidden" name="symbol" value="{{ symbol }}">
+                    <div class="form-group">
+                        <label for="S">Current Stock Price (S):</label>
+                        <input type="number" class="form-control" id="S" name="S" value="{{ historical_data[-1]['Close'] }}" required>
+                    </div>
+                    <div class="form-group">
+                        <label for="K">Strike Price (K):</label>
+                        <input type="number" class="form-control" id="K" name="K" required>
+                    </div>
+                    <div class="form-group">
+                        <label for="T">Time to Maturity (T in years):</label>
+                        <input type="number" step="0.01" class="form-control" id="T" name="T" required>
+                    </div>
+                    <div class="form-group">
+                        <label for="r">Risk-Free Interest Rate (r):</label>
+                        <input type="number" step="0.01" class="form-control" id="r" name="r" value="{{ risk_free_rate }}" readonly>
+                    </div>
+                    <div class="form-group">
+                        <label for="sigma">Volatility (σ):</label>
+                        <input type="number" step="0.01" class="form-control" id="sigma" name="sigma" value="{{ volatility }}" readonly>
+                    </div>
+                    <button type="submit" class="btn btn-primary">Calculate</button>
+                </form>
+                {% if call_price is not none %}
+                <h4>Call Option Price: {{ call_price }}</h4>
+                {% endif %}
+            </div>
+            
+            <div id="forecasting-arima" class="sub-tab-content mt-3" style="display:none;">
+                <h3>Forecasting ARIMA</h3>
+                <form action="/forecast_arima" method="post">
+                    <input type="hidden" name="symbol" value="{{ symbol }}">
+                    <div class="form-group">
+                        <label for="periods">Forecast Periods (days):</label>
+                        <input type="number" class="form-control" id="periods" name="periods" required>
+                    </div>
+                    <button type="submit" class="btn btn-primary">Forecast</button>
+                </form>
+                {% if forecast is not none %}
+                <h4>ARIMA Forecast:</h4>
+                <ul>
+                    {% for date, value in forecast.items() %}
+                    <li>{{ date }}: {{ value }}</li>
+                    {% endfor %}
+                </ul>
+                {% endif %}
+            </div>
+
+            <div id="forecasting-prophet" class="sub-tab-content mt-3" style="display:none;">
+                <h3>Forecasting Prophet</h3>
+                <form action="/forecast_prophet" method="post">
+                    <input type="hidden" name="symbol" value="{{ symbol }}">
+                    <div class="form-group">
+                        <label for="periods">Forecast Periods (days):</label>
+                        <input type="number" class="form-control" id="periods" name="periods" required>
+                    </div>
+                    <button type="submit" class="btn btn-primary">Forecast</button>
+                </form>
+                {% if forecast is not none %}
+                <h4>Prophet Forecast:</h4>
+                <ul>
+                    {% for date, value in forecast.items() %}
+                    <li>{{ date }}: {{ value }}</li>
+                    {% endfor %}
+                </ul>
+                {% endif %}
+            </div>
+        </div>
+
+        <div id="ai-analysis" class="tab-content mt-3 {% if active_tab != 'ai-analysis' %}d-none{% endif %}">
+            <h2>AI Analysis</h2>
+
+            <!-- Company Overview -->
+            <div class="content-section">
+                <h3>Company Overview</h3>
+                <p><strong>Company Name:</strong> {{ company_info['name'] }}</p>
+                <p><strong>Industry:</strong> {{ company_info['sector'] }}</p>
+                <p><strong>Specification:</strong> {{ company_info['industry'] }}</p>
+                <p><strong>About:</strong> {{ company_info['description'] }}</p>
+            </div>
+
+            <!-- Financial Analysis -->
+            <div class="content-section">
+                <h3>Financial Analysis</h3>
+                <p>{{ financial_analysis | safe }}</p>
+            </div>
+
+            <!-- Volatility analysis -->
+            <div class="content-section">
+                <h3>Volatility Analysis</h3>
+                <p>Historical Volatility: {{ hist_volatility }}</p>
+                <p>{{ volatility_analysis }}</p>
+            </div>
+
+            <!-- Risks -->
+            <div class="content-section">
+                <h3>Risk Analysis</h3>
+                <p>Value at Risk (VaR): {{ risk['var'] }}</p>
+                <p>{{ risk_analysis }}</p>
+            </div>
+
+            <!-- News Analysis -->
+            <div class="content-section">
+                <h3>News Analysis</h3>
+                <p>{{ news_analysis }}</p>
+            </div>
+
+            <!-- AI Opinion -->
+            <div class="content-section">
+                <h3>AI Opinion</h3>
+                <p><strong>{{ investment_opinion['opinion'] }}</strong></p>
+                <p>{{ investment_opinion['reason'] }}</p>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        function showTab(event, tabId) {
+            var tabs = document.getElementsByClassName('tab-content');
+            for (var i = 0; i < tabs.length; i++) {
+                tabs[i].classList.add('d-none');
+            }
+            var tabLinks = document.querySelectorAll('.nav-tabs a');
+            tabLinks.forEach(function(link) {
+                link.classList.remove('active');
+            });
+            event.currentTarget.classList.add('active');
+            document.getElementById(tabId).classList.remove('d-none');
+        }
+        
+        function showSubTab(event, subTabId) {
+            var subTabs = document.getElementsByClassName('sub-tab-content');
+            for (var i = 0; i < subTabs.length; i++) {
+                subTabs[i].style.display = 'none';
+            }
+            var subTabLinks = document.querySelectorAll('.nav-tabs .nav-link');
+            subTabLinks.forEach(function(link) {
+                link.classList.remove('active');
+            });
+            event.currentTarget.classList.add('active');
+            document.getElementById(subTabId).style.display = 'block';
+        }
+    </script>
+</body>
+</html>

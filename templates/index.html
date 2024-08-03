@@ -1,0 +1,43 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Investment Management Tool</title>
+    <link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/4.5.2/css/bootstrap.min.css">
+    <style>
+        body {
+            background-color: #f8f9fa;
+            font-family: Arial, sans-serif;
+        }
+        h1, h2 {
+            color: #343a40;
+        }
+        .table th, .table td {
+            vertical-align: middle;
+        }
+        .table th {
+            background-color: #007bff;
+            color: #fff;
+        }
+        .table-striped tbody tr:nth-of-type(odd) {
+            background-color: #e9ecef;
+        }
+        .table {
+            margin-bottom: 0;
+        }
+    </style>
+</head>
+<body>
+    <div class="container mt-5">
+        <h1>Investment Management Tool</h1>
+        <form action="/company" method="get">
+            <div class="form-group">
+                <label for="symbol">Enter Stock Symbol:</label>
+                <input type="text" class="form-control" id="symbol" name="symbol" required>
+            </div>
+            <button type="submit" class="btn btn-primary">Get Company Details</button>
+        </form>
+    </div>
+</body>
+</html>
