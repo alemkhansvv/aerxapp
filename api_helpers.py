@@ -8,6 +8,7 @@ import openai
 from bs4 import BeautifulSoup
 import os
 import time  # Добавил импорт для модуля time
+import numpy as np
 
 def get_stock_data(symbol):
     try:
@@ -151,7 +152,7 @@ def forecast_prophet(symbol, periods):
         forecast = model.predict(future)
 
         forecast_dates = forecast['ds'].tail(periods).dt.strftime('%Y-%m-%d').tolist()
-        forecast_values = forecast['yhat'].tail(periods).astype(np.float64).tolist()
+        forecast_values = np.array(forecast['yhat'].tail(periods)).astype(np.float64).tolist()
         forecast_dict = dict(zip(forecast_dates, forecast_values))
 
         return forecast_dict
