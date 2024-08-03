@@ -190,12 +190,6 @@
                 <li class="nav-item">
                     <a class="nav-link active" href="#black-scholes" onclick="showSubTab(event, 'black-scholes')">Black-Scholes Model</a>
                 </li>
-                <li class="nav-item">
-                    <a class="nav-link" href="#forecasting-arima" onclick="showSubTab(event, 'forecasting-arima')">Forecasting ARIMA</a>
-                </li>
-                <li class="nav-item">
-                    <a class="nav-link" href="#forecasting-prophet" onclick="showSubTab(event, 'forecasting-prophet')">Forecasting Prophet</a>
-                </li>
             </ul>
             
             <div id="black-scholes" class="sub-tab-content mt-3">
@@ -226,46 +220,6 @@
                 </form>
                 {% if call_price is not none %}
                 <h4>Call Option Price: {{ call_price }}</h4>
-                {% endif %}
-            </div>
-            
-            <div id="forecasting-arima" class="sub-tab-content mt-3" style="display:none;">
-                <h3>Forecasting ARIMA</h3>
-                <form action="/forecast_arima" method="post">
-                    <input type="hidden" name="symbol" value="{{ symbol }}">
-                    <div class="form-group">
-                        <label for="periods">Forecast Periods (days):</label>
-                        <input type="number" class="form-control" id="periods" name="periods" required>
-                    </div>
-                    <button type="submit" class="btn btn-primary">Forecast</button>
-                </form>
-                {% if forecast is not none %}
-                <h4>ARIMA Forecast:</h4>
-                <ul>
-                    {% for date, value in forecast.items() %}
-                    <li>{{ date }}: {{ value }}</li>
-                    {% endfor %}
-                </ul>
-                {% endif %}
-            </div>
-
-            <div id="forecasting-prophet" class="sub-tab-content mt-3" style="display:none;">
-                <h3>Forecasting Prophet</h3>
-                <form action="/forecast_prophet" method="post">
-                    <input type="hidden" name="symbol" value="{{ symbol }}">
-                    <div class="form-group">
-                        <label for="periods">Forecast Periods (days):</label>
-                        <input type="number" class="form-control" id="periods" name="periods" required>
-                    </div>
-                    <button type="submit" class="btn btn-primary">Forecast</button>
-                </form>
-                {% if forecast is not none %}
-                <h4>Prophet Forecast:</h4>
-                <ul>
-                    {% for date, value in forecast.items() %}
-                    <li>{{ date }}: {{ value }}</li>
-                    {% endfor %}
-                </ul>
                 {% endif %}
             </div>
         </div>

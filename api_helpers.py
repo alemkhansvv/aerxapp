@@ -96,6 +96,8 @@ def forecast_arima(symbol, periods):
         print(f"Error forecasting ARIMA: {e}")
         return None
 
+
+
 def fetch_full_text(url):
     try:
         response = req.get(url)
