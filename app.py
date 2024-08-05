@@ -28,7 +28,7 @@ openai.api_key = os.getenv("OPENAI_API_KEY")
 def get_risk_free_rate():
     try:
         stock = yf.Ticker("TNX")
-        data = stock.history(period="1d")
+        data = stock.history(period="1m")
         if data.empty:
             return "Error"  # В случае ошибки, возвращаем текст "Error"
         latest_data = data.iloc[-1]
