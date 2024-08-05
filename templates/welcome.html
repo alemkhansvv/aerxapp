@@ -1,0 +1,135 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Welcome to AERX</title>
+    <link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/4.5.2/css/bootstrap.min.css">
+    <style>
+        body, html {
+            height: 100%;
+            margin: 0;
+            font-family: Arial, sans-serif;
+            background: linear-gradient(to bottom, #3a6186, #89253e);
+            overflow: hidden;
+        }
+        .navbar {
+            width: 100%;
+            background: transparent;
+            padding: 20px;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            position: fixed;
+            top: 0;
+            z-index: 1000;
+        }
+        .navbar a {
+            color: #ffffff;
+            text-shadow: 1px 1px 2px rgba(0, 0, 0, 0.7);
+            margin: 0 15px;
+            text-decoration: none;
+            font-size: 16px;
+        }
+        .navbar .logo {
+            font-size: 24px;
+            font-weight: bold;
+            color: #ffffff;
+            text-shadow: 1px 1px 2px rgba(0, 0, 0, 0.7);
+        }
+        .content {
+            display: flex;
+            flex: 1;
+            justify-content: center;
+            align-items: center;
+            flex-direction: column;
+            text-align: center;
+            padding-top: 80px;
+        }
+        .text-container {
+            display: flex;
+            justify-content: space-between;
+            width: 100%;
+            max-width: 1200px;
+            padding: 0 20px;
+        }
+        .left-section, .right-section {
+            flex: 1;
+            padding: 40px;
+            color: #ffffff;
+        }
+        .left-section h1, .right-section h2 {
+            margin-bottom: 20px;
+        }
+        .left-section p, .right-section ul {
+            margin-bottom: 20px;
+        }
+        .right-section ul {
+            list-style-type: none;
+            padding: 0;
+        }
+        .right-section li {
+            margin: 10px 0;
+        }
+        .right-section ul li::before {
+            content: "•";
+            color: #ffffff;
+            display: inline-block; 
+            width: 1em;
+            margin-left: -1em;
+        }
+        .button-container {
+            margin-top: 40px;
+        }
+        .try-button {
+            background-color: #4CAF50;
+            color: #ffffff;
+            border: none;
+            padding: 15px 30px;
+            font-size: 18px;
+            cursor: pointer;
+            border-radius: 5px;
+            text-shadow: 1px 1px 2px rgba(0, 0, 0, 0.3);
+            transition: background-color 0.3s ease;
+        }
+        .try-button:hover {
+            background-color: #45a049;
+        }
+    </style>
+</head>
+<body>
+    <div class="navbar">
+        <div class="logo">AERX</div>
+        <div>
+            <a href="/" id="home-link">Home</a>
+            <a href="/methodology" id="methodology-link">Methodology</a>
+            <a href="/contact" id="contact-link">Contact</a>
+            <a href="/termsofuse" id="termsofuse-link">Terms of Use</a>
+            <a href="/login">Sign In</a>
+            <a href="/register">Sign Up</a>
+        </div>
+    </div>
+    <div class="content" id="welcome-content">
+        <div class="text-container">
+            <div class="left-section">
+                <h1>Welcome to AERX</h1>
+                <p>As an investment analyst, I spent countless hours dissecting company reports, analyzing market trends, and seeking the right data to make informed decisions. This painstaking process, while rewarding, consumed vast amounts of my time and energy.</p>
+                <p>Driven by a desire to streamline this work, I developed AERX – a tool initially designed to simplify my own analysis. AERX now empowers investors to quickly and effectively gather insights, saving precious time and effort.</p>
+            </div>
+            <div class="right-section">
+                <h2>What does AERX offer?</h2>
+                <ul>
+                    <li><strong>Comprehensive Financial Forecasting:</strong> Look ahead and see potential growth paths for your investments.</li>
+                    <li><strong>In-depth News and Market Analysis:</strong> Stay updated on the events that impact your financial decisions.</li>
+                    <li><strong>Personalized Investment Recommendations:</strong> Receive tailored advice that aligns with your unique goals.</li>
+                </ul>
+                <p>Join AERX and transform the way you manage your investments, just as I transformed my own approach.</p>
+            </div>
+        </div>
+        <div class="button-container">
+            <button class="try-button" onclick="window.location.href='index'">Try It Now For Free</button>
+        </div>
+    </div>
+</body>
+</html>

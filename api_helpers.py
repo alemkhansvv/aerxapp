@@ -9,10 +9,13 @@ from bs4 import BeautifulSoup
 import os
 import time  # Добавил импорт для модуля time
 
-def get_stock_data(symbol):
+def get_stock_data(symbol, start_date=None, end_date=None):
     try:
         stock = yf.Ticker(symbol)
-        data = stock.history(period="max")
+        if start_date and end_date:
+            data = stock.history(start=start_date, end=end_date)
+        else:
+            data = stock.history(period="max")
         info = stock.info
         if data.empty:
             return None
@@ -38,6 +41,7 @@ def get_stock_data(symbol):
     except Exception as e:
         print(f"Error fetching stock data: {e}")
         return None
+
 
 def get_news(symbol):
     try:

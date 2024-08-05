@@ -6,37 +6,106 @@
     <title>Investment Management Tool</title>
     <link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/4.5.2/css/bootstrap.min.css">
     <style>
-        body {
-            background-color: #f8f9fa;
+        body, html {
+            height: 100%;
+            margin: 0;
             font-family: Arial, sans-serif;
+            background: linear-gradient(to bottom, #3a6186, #89253e);
+            overflow-y: auto;
         }
-        h1, h2 {
-            color: #343a40;
+        .navbar {
+            width: 100%;
+            background: transparent;
+            padding: 20px;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            position: fixed;
+            top: 0;
+            z-index: 1000;
         }
-        .table th, .table td {
-            vertical-align: middle;
+        .navbar a {
+            color: #ffffff;
+            text-shadow: 1px 1px 2px rgba(0, 0, 0, 0.7);
+            margin: 0 15px;
+            text-decoration: none;
+            font-size: 16px;
         }
-        .table th {
-            background-color: #007bff;
-            color: #fff;
+        .navbar .logo {
+            font-size: 24px;
+            font-weight: bold;
+            color: #ffffff;
+            text-shadow: 1px 1px 2px rgba(0, 0, 0, 0.7);
         }
-        .table-striped tbody tr:nth-of-type(odd) {
-            background-color: #e9ecef;
+        .container {
+            position: relative;
+            top: 100px;
+            padding: 20px;
+            color: #ffffff;
+            max-width: 600px;
+            background-color: rgba(255, 255, 255, 0.1);
+            border-radius: 10px;
         }
-        .table {
-            margin-bottom: 0;
+        .form-group label {
+            font-size: 18px;
+            color: #ffffff;
+        }
+        .form-control {
+            border: none;
+            border-radius: 5px;
+            padding: 10px;
+            margin-bottom: 10px;
+        }
+        .btn-custom {
+            background: linear-gradient(to right, #4CAF50, #2E8B57);
+            border: none;
+            padding: 10px 20px;
+            font-size: 16px;
+            cursor: pointer;
+            border-radius: 5px;
+            color: #ffffff;
+            text-shadow: 1px 1px 2px rgba(0, 0, 0, 0.3);
+            transition: background 0.3s ease;
+        }
+        .btn-custom:hover {
+            background: linear-gradient(to right, #45a049, #26734d);
+        }
+        h1 {
+            color: #ffffff;
+            text-align: center;
+            margin-bottom: 30px;
+        }
+        .loading-text {
+            font-size: 12px;
+            font-style: italic;
+            color: #ffffff;
+            margin-top: 10px;
+            text-align: center;
         }
     </style>
 </head>
 <body>
+    <div class="navbar">
+        <div class="logo">AERX</div>
+        <div>
+            <a href="welcome.html">Home</a>
+            <a href="methodology.html">Methodology</a>
+            <a href="contact.html">Contact</a>
+            <a href="termsofuse.html">Terms of Use</a>
+            <a href="login.html">Sign In</a>
+            <a href="register.html">Sign Up</a>
+        </div>
+    </div>
     <div class="container mt-5">
         <h1>Investment Management Tool</h1>
-        <form action="/company" method="get">
+        <form id="company-form" action="/company" method="get">
             <div class="form-group">
                 <label for="symbol">Enter Stock Symbol:</label>
                 <input type="text" class="form-control" id="symbol" name="symbol" required>
             </div>
-            <button type="submit" class="btn btn-primary">Get Company Details</button>
+            <button type="submit" class="btn btn-custom">Get Company Details</button>
+            <div class="loading-text">Loading may take up to 60 seconds</div>
         </form>
     </div>
 </body>

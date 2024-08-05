@@ -203,11 +203,44 @@ def analyze_risk(symbol, var_value):
     )
     return response.choices[0].message.content.strip()
 
+@app.route('/historical-prices')
+def historical_prices():
+    symbol = request.args.get('symbol')
+    start_date = request.args.get('start_date')
+    end_date = request.args.get('end_date')
+
+    stock_data = get_stock_data(symbol, start_date, end_date)
+    if not stock_data:
+        return "Error fetching stock data"
+
+    historical_data = stock_data['historical_prices']
+    price_chart = plot_historical_prices(historical_data)
+
+    return render_template('company.html',
+                           symbol=symbol,
+                           historical_data=historical_data,
+                           price_chart=price_chart,
+                           active_tab='historical-prices')
 
 @app.route('/')
+def welcome():
+    return render_template('welcome.html')
+
+@app.route('/methodology')
+def methodology():
+    return render_template('methodology.html')
+
+@app.route('/contact')
+def contact():
+    return render_template('contact.html')
+
+@app.route('/termsofuse')
+def terms_of_use():
+    return render_template('termsofuse.html')
+
+@app.route('/index')
 def index():
     return render_template('index.html')
-
 
 @app.route('/company')
 def company():
@@ -256,8 +289,7 @@ def company():
                            investment_opinion=investment_opinion,
                            call_price=None,
                            forecast=None,
-                           active_tab="company-description")
-
+                           active_tab="ai-analysis")
 
 @app.route('/calculate_black_scholes', methods=['POST'])
 def calculate_black_scholes():
