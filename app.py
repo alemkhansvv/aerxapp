@@ -27,11 +27,13 @@ openai.api_key = os.getenv("OPENAI_API_KEY")
 
 def get_risk_free_rate():
     try:
-        stock = yf.Ticker("TNX")
-        data = stock.history(period="1m")
+        # Используем тикер ^TNX для 10-Year Treasury Note Yield
+        stock = yf.Ticker("^TNX")
+        data = stock.history(period="1d")  # Запрашиваем данные за последний день
         if data.empty:
-            return "Error"  # В случае ошибки, возвращаем текст "Error"
+            return "No data available"  # В случае отсутствия данных, возвращаем соответствующий текст
         latest_data = data.iloc[-1]
+        print("Latest data:", latest_data)  # Выводим последнюю строку данных для диагностики
         risk_free_rate = latest_data['Close'] / 100  # Преобразуем значение в процент
         return risk_free_rate
     except Exception as e:
@@ -203,6 +205,14 @@ def analyze_risk(symbol, var_value):
     )
     return response.choices[0].message.content.strip()
 
+
+def black_scholes_call(S, K, T, r, sigma):
+    d1 = (np.log(S / K) + (r + 0.5 * sigma**2) * T) / (sigma * np.sqrt(T))
+    d2 = d1 - sigma * np.sqrt(T)
+    call_price = S * stats.norm.cdf(d1) - K * np.exp(-r * T) * stats.norm.cdf(d2)
+    return call_price
+
+
 @app.route('/historical-prices')
 def historical_prices():
     symbol = request.args.get('symbol')
@@ -221,6 +231,7 @@ def historical_prices():
                            historical_data=historical_data,
                            price_chart=price_chart,
                            active_tab='historical-prices')
+
 
 @app.route('/')
 def welcome():
@@ -291,6 +302,7 @@ def company():
                            forecast=None,
                            active_tab="ai-analysis")
 
+
 @app.route('/calculate_black_scholes', methods=['POST'])
 def calculate_black_scholes():
     S = float(request.form['S'])
@@ -312,8 +324,15 @@ def calculate_black_scholes():
     financials = get_financials(symbol)  # Получение финансовых данных
 
     processed_financials = process_financial_data(financials)  # Обработка финансовых данных
-
+    financial_analysis = analyze_financials(processed_financials)
     price_chart = plot_historical_prices(historical_data)
+    hist_volatility = calculate_volatility(symbol)
+    formatted_hist_volatility = f"{hist_volatility:.2f}" if hist_volatility is not None else "N/A"
+    volatility_analysis = analyze_volatility(symbol, hist_volatility)
+    var_value = calculate_var(symbol)
+    risk_analysis = analyze_risk(symbol, var_value)
+    news_analysis = analyze_news(news)
+    investment_opinion = get_investment_opinion(financial_analysis, volatility_analysis, risk_analysis, news_analysis)
 
     return render_template('company.html',
                            company_info=stock_data['company_info'],
@@ -326,6 +345,13 @@ def calculate_black_scholes():
                            risk_free_rate=r,
                            volatility=sigma,
                            forecast=None,
+                           financial_analysis=financial_analysis,
+                           hist_volatility=formatted_hist_volatility,
+                           volatility_analysis=volatility_analysis,
+                           risk={'var': var_value},
+                           risk_analysis=risk_analysis,
+                           news_analysis=news_analysis,
+                           investment_opinion=investment_opinion,
                            active_tab="mathematical-analysis")
 
 
