@@ -10,9 +10,9 @@ import numpy as np
 import scipy.stats as stats
 import yfinance as yf
 import os
-#from flask_markdown import Markdown
 from markupsafe import Markup
 import sys
+from markdown import markdown
 
 sys.modules['flask.Markup'] = Markup
 
@@ -23,17 +23,26 @@ locale.setlocale(locale.LC_ALL, '')
 load_dotenv()
 
 app = Flask(__name__)
-#Markdown(app)  # Инициализация поддержки Markdown в Flask
+@app.template_filter('markdown')
+def markdown_filter(text):
+    return Markup(markdown(text))
 
 app.jinja_env.globals.update(enumerate=enumerate)
 
 @app.template_filter('intcomma')
-@environmentfilter
-def intcomma(environment, value):
+def intcomma(value):
+    return "{:,}".format(value)
+
+@app.template_filter('round_and_comma')
+def round_and_comma(value, decimals=2):
     try:
-        return f"{value:,.2f}"
+        # Попробуем преобразовать значение в float и округлить
+        value = float(value)
+        value = round(value, decimals)
     except (ValueError, TypeError):
+        # Если преобразование не удалось, возвращаем значение как есть
         return value
+    return "{:,}".format(value)
 
 # Ваши API-ключи для Finnhub
 FINNHUB_API_KEY = os.getenv("FINNHUB_API_KEY")

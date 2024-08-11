@@ -216,8 +216,8 @@
             <div class="content-section">
                 <h3>Valuation Analysis</h3>
                 {% if valuation %}
-                <p><strong>Fair Value per Share:</strong> {{ valuation.fair_value_per_share | round(2) }}</p>
-                <p><strong>Current Price:</strong> {{ valuation.current_price | round(2) }}</p>
+                <p><strong>Fair Value per Share:</strong> {{ valuation.fair_value_per_share | round_and_comma(2) }}</p>
+                <p><strong>Current Price:</strong> {{ valuation.current_price | round_and_comma(2) }}</p>
                 <p><strong>Overvaluation Percentage:</strong> {{ valuation.overvaluation | round(2) }}%</p>
                 {% if valuation.overvaluation > 0 %}
                 <p>The stock is overvalued by {{ valuation.overvaluation | round(2) }}%</p>
@@ -269,7 +269,7 @@
                     <tr>
                         <td>{{ item }}</td>
                         {% for value in financials['balance_sheet'].loc[item].values %}
-                        <td>{{ value }}</td>
+                        <td>{{ value | round_and_comma(2) }}</td>
                         {% endfor %}
                     </tr>
                     {% endfor %}
@@ -290,7 +290,7 @@
                     <tr>
                         <td>{{ item }}</td>
                         {% for value in financials['cashflow'].loc[item].values %}
-                        <td>{{ value }}</td>
+                        <td>{{ value | round_and_comma(2) }}</td>
                         {% endfor %}
                     </tr>
                     {% endfor %}
@@ -311,7 +311,7 @@
                     <tr>
                         <td>{{ item }}</td>
                         {% for value in financials['income_statement'].loc[item].values %}
-                        <td>{{ value }}</td>
+                        <td>{{ value | round_and_comma(2) }}</td>
                         {% endfor %}
                     </tr>
                     {% endfor %}
@@ -361,8 +361,8 @@
             {% if valuation %}
             <div class="content-section">
                 <h3>Fair Value Analysis</h3>
-                <p><strong>Fair Value per Share:</strong> {{ valuation.fair_value_per_share | round(2) | intcomma }}</p>
-                <p><strong>Current Price:</strong> {{ valuation.current_price | round(2) | intcomma }}</p>
+                <p><strong>Fair Value per Share:</strong> {{ valuation.fair_value_per_share | round_and_comma(2) }}</p>
+                <p><strong>Current Price:</strong> {{ valuation.current_price | round_and_comma(2) }}</p>
                 <p><strong>Overvaluation Percentage:</strong> {{ valuation.overvaluation | round(2) }}%</p>
                 {% if valuation.overvaluation > 0 %}
                 <p>The stock is overvalued by {{ valuation.overvaluation | round(2) }}%</p>
@@ -375,34 +375,34 @@
                 <div class="content-section">
                     <h4>Forecasted Revenue:</h4>
                     {% for i, value in enumerate(valuation.forecasted_revenue, 1) %}
-                    <p>Year {{ i }} - {{ value | round(2) | intcomma }}</p>
+                    <p>Year {{ i }} - {{ value | round_and_comma(2) }}</p>
                     {% endfor %}
                 </div>
                 <div class="content-section">
                     <h4>Forecasted Free Cash Flow (FCF):</h4>
                     {% for i, value in enumerate(valuation.forecasted_fcf, 1) %}
-                    <p>Year {{ i }} - {{ value | round(2) | intcomma }}</p>
+                    <p>Year {{ i }} - {{ value | round_and_comma(2) }}</p>
                     {% endfor %}
                 </div>
                 <div class="content-section">
                     <h4>PV of Forecasted Free Cash Flow (FCF):</h4>
                     {% for i, value in enumerate(valuation.pv_of_fcf, 1) %}
-                    <p>Year {{ i }} - {{ value | round(2) | intcomma }}</p>
+                    <p>Year {{ i }} - {{ value | round_and_comma(2) }}</p>
                     {% endfor %}
                 </div>
                 <div class="content-section">
                     <h4>Terminal Value:</h4>
-                    <p>{{ valuation.terminal_value | round(2) | intcomma }}</p>
+                    <p>{{ valuation.terminal_value | round_and_comma(2) }}</p>
                     <h4>PV of Terminal Value:</h4>
-                    <p>{{ valuation.pv_of_terminal_value | round(2) | intcomma }}</p>
+                    <p>{{ valuation.pv_of_terminal_value | round_and_comma(2) }}</p>
                 </div>
                 <div class="content-section">
                     <h4>Total Value of the Firm:</h4>
-                    <p>{{ valuation.total_value | round(2) | intcomma }}</p>
+                    <p>{{ valuation.total_value | round_and_comma(2) }}</p>
                 </div>
                 <div class="content-section">
                     <h4>WACC:</h4>
-                    <p>{{ valuation.wacc | round(2) | intcomma }}</p>
+                    <p>{{ valuation.wacc | round_and_comma(2) }}</p>
                 </div>
             </div>
             {% else %}
