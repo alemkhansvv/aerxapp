@@ -10,7 +10,7 @@ import numpy as np
 import scipy.stats as stats
 import yfinance as yf
 import os
-from flask_markdown import Markdown  # Импортируем Flask-Markdown
+from flaskext.markdown2 import Markdown
 from jinja2 import environmentfilter
 
 # Установка локали для форматирования чисел
