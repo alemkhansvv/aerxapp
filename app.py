@@ -10,8 +10,11 @@ import numpy as np
 import scipy.stats as stats
 import yfinance as yf
 import os
-from flaskext.markdown import Markdown
+from markupsafe import Markup
+import sys
 from jinja2 import environmentfilter
+
+sys.modules['flask.Markup'] = Markup
 
 # Установка локали для форматирования чисел
 locale.setlocale(locale.LC_ALL, '')
