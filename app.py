@@ -10,7 +10,7 @@ import numpy as np
 import scipy.stats as stats
 import yfinance as yf
 import os
-from flask_markdown import Markdown
+#from flask_markdown import Markdown
 from markupsafe import Markup
 import sys
 
@@ -23,7 +23,7 @@ locale.setlocale(locale.LC_ALL, '')
 load_dotenv()
 
 app = Flask(__name__)
-Markdown(app)  # Инициализация поддержки Markdown в Flask
+#Markdown(app)  # Инициализация поддержки Markdown в Flask
 
 app.jinja_env.globals.update(enumerate=enumerate)
 
