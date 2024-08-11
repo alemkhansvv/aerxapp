@@ -12,7 +12,6 @@ import yfinance as yf
 import os
 from markupsafe import Markup
 import sys
-from jinja2 import environmentfilter
 
 sys.modules['flask.Markup'] = Markup
 
