@@ -7,7 +7,6 @@ from prophet import Prophet
 import openai
 from bs4 import BeautifulSoup
 import os
-import time  # Добавил импорт для модуля time
 
 def get_stock_data(symbol, start_date=None, end_date=None):
     try:
@@ -41,7 +40,6 @@ def get_stock_data(symbol, start_date=None, end_date=None):
     except Exception as e:
         print(f"Error fetching stock data: {e}")
         return None
-
 
 def get_news(symbol):
     try:
@@ -99,8 +97,6 @@ def forecast_arima(symbol, periods):
     except Exception as e:
         print(f"Error forecasting ARIMA: {e}")
         return None
-
-
 
 def fetch_full_text(url):
     try:
@@ -165,9 +161,15 @@ def forecast_prophet(symbol, periods):
         print(f"Error forecasting Prophet: {e}")
         return None
 
-def get_investment_opinion(financial_analysis, volatility_analysis, risk_analysis, news_analysis):
+def get_investment_opinion(financial_analysis, volatility_analysis, risk_analysis, news_analysis, valuation):
     openai.api_key = os.getenv("OPENAI_API_KEY")
-    prompt = f"Based on the following analyses, provide an investment opinion (Buy, Sell, Hold) and a brief reason why.\n\nFinancial Analysis:\n{financial_analysis}\n\nVolatility Analysis:\n{volatility_analysis}\n\nRisk Analysis:\n{risk_analysis}\n\nNews Analysis:\n{news_analysis}\n\nYour response should be structured as follows:\n\nAI Opinion: [Buy/Sell/Hold]\nReason: [Your brief reason]"
+    prompt = f"""
+    Based on the following analyses, generate an investment opinion for company company. The opinion should summarize all key points and conclude with a clear recommendation in bold:
+
+    Use this data: {financial_analysis}, {volatility_analysis}, {risk_analysis}, {news_analysis}, {valuation}
+
+    The opinion should be concise, well-structured, and the final recommendation (buy, hold, or sell) should be bold-texted. As I use HTML - put <strong>(Opinion - Buy, sell or hold)<strong>. Ok? Example: the recommendation is to <strong>BUY<strong> - "Buy" should be bolded. The opinion should be written as a single paragraph without division into bullet points, etc. The reader should understand what we want to tell him.
+    """
     response = openai.chat.completions.create(
         model="gpt-3.5-turbo",
         messages=[
@@ -175,18 +177,40 @@ def get_investment_opinion(financial_analysis, volatility_analysis, risk_analysi
             {"role": "user", "content": prompt}
         ]
     )
+    analysis = response.choices[0].message.content.strip()
 
-    result = response.choices[0].message.content.strip()
-    print("AI Response:", result)  # Добавим логирование для отладки
+    # Исправление форматирования для рекомендации
+    formatted_opinion = analysis.replace("**hold**", "**hold**").replace("**buy**", "**buy**").replace("**sell**", "**sell**")
+    return formatted_opinion
 
-    try:
-        opinion_start = result.index("AI Opinion: ") + len("AI Opinion: ")
-        reason_start = result.index("Reason: ") + len("Reason: ")
-        opinion = result[opinion_start:result.index('\n', opinion_start)].strip()
-        reason = result[reason_start:].strip()
-    except (ValueError, IndexError) as e:
-        print(f"Error parsing AI response: {e}")
-        opinion = "No Opinion"
-        reason = "The AI did not return a valid opinion and reason."
 
-    return {'opinion': opinion, 'reason': reason}
+def get_company_type(ticker):
+    stock = yf.Ticker(ticker)
+    sector = stock.info.get('sector', None)
+    if sector == 'Financial Services':
+        return 'Financial'
+    else:
+        return 'Non-Financial'
+
+def analyze_dcf_model(valuation):
+    openai.api_key = os.getenv("OPENAI_API_KEY")
+    prompt = f"""
+    Analyze the following Discounted Cash Flow (DCF) model and provide a structured summary with bold headers for each section. The summary should cover:
+
+    - Key assumptions used in the model.
+    - Forecasted revenue and free cash flow trends.
+    - Terminal value calculation and its significance.
+    - Overall valuation result and its implications for investors.
+    - Concluding statement on the valuation accuracy and reliability.
+
+    Here is the DCF model data for analysis:
+    {valuation}
+    """
+    response = openai.chat.completions.create(
+        model="gpt-3.5-turbo",
+        messages=[
+            {"role": "system", "content": "You are a financial analyst."},
+            {"role": "user", "content": prompt}
+        ]
+    )
+    return response.choices[0].message.content.strip()

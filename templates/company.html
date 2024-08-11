@@ -5,6 +5,17 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Company Details</title>
     <link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/4.5.2/css/bootstrap.min.css">
+    
+    <!-- Google tag (gtag.js) -->
+    <script async src="https://www.googletagmanager.com/gtag/js?id=G-2LQF42QF19"></script>
+    <script>
+      window.dataLayer = window.dataLayer || [];
+      function gtag(){dataLayer.push(arguments);}
+      gtag('js', new Date());
+
+      gtag('config', 'G-2LQF42QF19');
+    </script>
+    
     <style>
         body {
             background-color: #f5f5f5;
@@ -58,10 +69,11 @@
             margin-left: 300px;
             margin-top: 100px;
             padding: 20px;
-            width: calc(100% - 320px);
+            width: 100%;
+            max-width: none;
         }
         h1, h2, h3 {
-            color: #2c3e50;
+            color: #007bff; /* Голубой цвет для заголовков */
         }
         .tab-content {
             margin-top: 20px;
@@ -71,9 +83,11 @@
         }
         .content-section {
             margin-top: 20px;
+            width: 100%;
+            max-width: none;
         }
-        .content-section h3 {
-            color: #007bff;
+        .content-section p {
+            margin: 5px 0;
         }
         .search-form {
             display: flex;
@@ -157,7 +171,7 @@
     <div class="navbar">
         <div class="logo">AERX</div>
         <div>
-            <a href="/about">About Us</a>
+            <a href="/" onclick="location.href='/welcome'">About Us</a>
             <a href="/methodology">Methodology</a>
             <a href="/contact">Contact</a>
             <a href="/terms">Terms of Use</a>
@@ -173,6 +187,7 @@
         <a href="#latest-news" onclick="showTab(event, 'latest-news')">Latest News</a>
         <a href="#financials" onclick="showTab(event, 'financials')">Financials</a>
         <a href="#mathematical-analysis" onclick="showTab(event, 'mathematical-analysis')">Mathematical Analysis</a>
+        <a href="#valuation" onclick="showTab(event, 'valuation')">Valuation</a>
     </div>
     <div class="container">
         <h1>{{ company_info['name'] }}</h1>
@@ -187,26 +202,35 @@
             </div>
             <div class="content-section">
                 <h3>Financial Analysis</h3>
-                <p>{{ financial_analysis | safe }}</p>
+                <div>{{ financial_analysis | markdown }}</div>
             </div>
             <div class="content-section">
                 <h3>Volatility Analysis</h3>
-                <p>Historical Volatility: {{ hist_volatility }}</p>
+                <p><strong>Historical Volatility:</strong> {{ hist_volatility }}</p>
                 <p>{{ volatility_analysis }}</p>
             </div>
             <div class="content-section">
                 <h3>Risk Analysis</h3>
-                <p>Value at Risk (VaR): {{ risk['var'] }}</p>
-                <p>{{ risk_analysis }}</p>
+                <div>{{ risk_analysis | markdown }}</div>
             </div>
             <div class="content-section">
-                <h3>News Analysis</h3>
-                <p>{{ news_analysis }}</p>
+                <h3>Valuation Analysis</h3>
+                {% if valuation %}
+                <p><strong>Fair Value per Share:</strong> {{ valuation.fair_value_per_share | round(2) }}</p>
+                <p><strong>Current Price:</strong> {{ valuation.current_price | round(2) }}</p>
+                <p><strong>Overvaluation Percentage:</strong> {{ valuation.overvaluation | round(2) }}%</p>
+                {% if valuation.overvaluation > 0 %}
+                <p>The stock is overvalued by {{ valuation.overvaluation | round(2) }}%</p>
+                {% else %}
+                <p>The stock is undervalued by {{ valuation.overvaluation | round(2) }}%</p>
+                {% endif %}
+                {% else %}
+                <p>No Valuation Analysis available.</p>
+                {% endif %}
             </div>
             <div class="content-section">
                 <h3>AI Opinion</h3>
-                <p><strong>{{ investment_opinion['opinion'] }}</strong></p>
-                <p>{{ investment_opinion['reason'] }}</p>
+                <p>{{ investment_opinion | safe }}</p> <!-- Используем safe, чтобы тег <strong> не экранировался -->
             </div>
         </div>
         <div id="historical-prices" class="tab-content {% if active_tab != 'historical-prices' %}d-none{% endif %}">
@@ -332,6 +356,59 @@
                 {% endif %}
             </div>
         </div>
+        <div id="valuation" class="tab-content {% if active_tab != 'valuation' %}d-none{% endif %}">
+            <h2>Valuation</h2>
+            {% if valuation %}
+            <div class="content-section">
+                <h3>Fair Value Analysis</h3>
+                <p><strong>Fair Value per Share:</strong> {{ valuation.fair_value_per_share | round(2) | intcomma }}</p>
+                <p><strong>Current Price:</strong> {{ valuation.current_price | round(2) | intcomma }}</p>
+                <p><strong>Overvaluation Percentage:</strong> {{ valuation.overvaluation | round(2) }}%</p>
+                {% if valuation.overvaluation > 0 %}
+                <p>The stock is overvalued by {{ valuation.overvaluation | round(2) }}%</p>
+                {% else %}
+                <p>The stock is undervalued by {{ valuation.overvaluation | round(2) }}%</p>
+                {% endif %}
+            </div>
+            <button onclick="toggleDetails()">Expand</button>
+            <div id="valuation-details" style="display:none;">
+                <div class="content-section">
+                    <h4>Forecasted Revenue:</h4>
+                    {% for i, value in enumerate(valuation.forecasted_revenue, 1) %}
+                    <p>Year {{ i }} - {{ value | round(2) | intcomma }}</p>
+                    {% endfor %}
+                </div>
+                <div class="content-section">
+                    <h4>Forecasted Free Cash Flow (FCF):</h4>
+                    {% for i, value in enumerate(valuation.forecasted_fcf, 1) %}
+                    <p>Year {{ i }} - {{ value | round(2) | intcomma }}</p>
+                    {% endfor %}
+                </div>
+                <div class="content-section">
+                    <h4>PV of Forecasted Free Cash Flow (FCF):</h4>
+                    {% for i, value in enumerate(valuation.pv_of_fcf, 1) %}
+                    <p>Year {{ i }} - {{ value | round(2) | intcomma }}</p>
+                    {% endfor %}
+                </div>
+                <div class="content-section">
+                    <h4>Terminal Value:</h4>
+                    <p>{{ valuation.terminal_value | round(2) | intcomma }}</p>
+                    <h4>PV of Terminal Value:</h4>
+                    <p>{{ valuation.pv_of_terminal_value | round(2) | intcomma }}</p>
+                </div>
+                <div class="content-section">
+                    <h4>Total Value of the Firm:</h4>
+                    <p>{{ valuation.total_value | round(2) | intcomma }}</p>
+                </div>
+                <div class="content-section">
+                    <h4>WACC:</h4>
+                    <p>{{ valuation.wacc | round(2) | intcomma }}</p>
+                </div>
+            </div>
+            {% else %}
+            <p>Valuation is not available for financial companies. It will be added soon.</p>
+            {% endif %}
+        </div>
     </div>
     <script>
         function showTab(event, tabId) {
@@ -364,6 +441,15 @@
         function searchStock() {
             var query = document.getElementById('search-input').value;
             window.location.href = '/company?symbol=' + query;
+        }
+
+        function toggleDetails() {
+            var details = document.getElementById('valuation-details');
+            if (details.style.display === 'none') {
+                details.style.display = 'block';
+            } else {
+                details.style.display = 'none';
+            }
         }
     </script>
 </body>

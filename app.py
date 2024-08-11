@@ -1,14 +1,17 @@
 import locale
 from flask import Flask, render_template, request
-from api_helpers import get_stock_data, get_news, get_financials, forecast_arima, forecast_prophet, analyze_news, fetch_full_text, get_investment_opinion
+from api_helpers import get_stock_data, get_news, get_financials, forecast_arima, forecast_prophet, analyze_news, fetch_full_text, get_investment_opinion, get_company_type, analyze_dcf_model
 import openai
 from dotenv import load_dotenv
+from dcf import perform_dcf_analysis
 import plotly.graph_objs as go
 import pandas as pd
 import numpy as np
 import scipy.stats as stats
 import yfinance as yf
 import os
+from flaskext.markdown import Markdown  # Импортируем Flask-Markdown
+from jinja2 import environmentfilter
 
 # Установка локали для форматирования чисел
 locale.setlocale(locale.LC_ALL, '')
@@ -17,6 +20,17 @@ locale.setlocale(locale.LC_ALL, '')
 load_dotenv()
 
 app = Flask(__name__)
+Markdown(app)  # Инициализация поддержки Markdown в Flask
+
+app.jinja_env.globals.update(enumerate=enumerate)
+
+@app.template_filter('intcomma')
+@environmentfilter
+def intcomma(environment, value):
+    try:
+        return f"{value:,.2f}"
+    except (ValueError, TypeError):
+        return value
 
 # Ваши API-ключи для Finnhub
 FINNHUB_API_KEY = os.getenv("FINNHUB_API_KEY")
@@ -27,18 +41,17 @@ openai.api_key = os.getenv("OPENAI_API_KEY")
 
 def get_risk_free_rate():
     try:
-        # Используем тикер ^TNX для 10-Year Treasury Note Yield
         stock = yf.Ticker("^TNX")
-        data = stock.history(period="1d")  # Запрашиваем данные за последний день
+        data = stock.history(period="1d")
         if data.empty:
-            return "No data available"  # В случае отсутствия данных, возвращаем соответствующий текст
+            return "No data available"
         latest_data = data.iloc[-1]
-        print("Latest data:", latest_data)  # Выводим последнюю строку данных для диагностики
-        risk_free_rate = latest_data['Close'] / 100  # Преобразуем значение в процент
+        print("Latest data:", latest_data)
+        risk_free_rate = latest_data['Close'] / 100
         return risk_free_rate
     except Exception as e:
         print(f"Error fetching risk-free rate: {e}")
-        return "Error"  # В случае ошибки, возвращаем текст "Error"
+        return "Error"
 
 
 def get_stock_volatility(symbol):
@@ -46,7 +59,7 @@ def get_stock_volatility(symbol):
         stock = yf.Ticker(symbol)
         hist = stock.history(period="1y")
         log_returns = np.log(1 + hist['Close'].pct_change())
-        volatility = np.std(log_returns) * np.sqrt(252)  # годовая волатильность
+        volatility = np.std(log_returns) * np.sqrt(252)
         return volatility
     except Exception as e:
         print(f"Error calculating volatility: {e}")
@@ -87,56 +100,31 @@ def plot_historical_prices(historical_data):
     return graph_html
 
 
-def process_financial_data(financial_data):
-    processed_data = {}
+def format_financial_data(financial_data):
+    formatted_data = {}
     for key, value in financial_data.items():
         df = pd.DataFrame(value).T
         df.index = pd.to_datetime(df.index).date
-        df = df.applymap(lambda x: locale.format_string("%d", x, grouping=True) if pd.notnull(x) and isinstance(x, (
-            int, float)) else x)
-        df = df[df.index > pd.to_datetime('2019-12-31').date()]  # Удаление данных за 2019 год
-        processed_data[key] = df.T
-    return processed_data
+        df = df.applymap(lambda x: "{:,.2f}".format(x / 1000) if pd.notnull(x) and isinstance(x, (int, float)) else x)
+        df = df[df.index > pd.to_datetime('2019-12-31').date()]
+        formatted_data[key] = df.T
+    return formatted_data
 
 
 def analyze_financials(financial_data):
     openai.api_key = os.getenv("OPENAI_API_KEY")
     prompt = f"""
-    Analyze the following financial data and provide a structured summary with bold headers for each section. The summary should cover:
+    Analyze the following financial data and provide a structured summary for each section. Use the exact numbers and changes in percentages. The summary should cover:
 
     - Key trends over the past four fiscal years.
-    - Balance sheet analysis.
-    - Cash flow statement analysis.
-    - Margins and ratios.
-    - Concluding statement on financial health.
+    - Income Statement analysis. Use exact numbers from financial data and percentage changes. It should be beatifully written. Pretend to be best financial/investment analyst in the whole world.
+    - Balance sheet analysis. Use exact numbers from financial data and percentage changes. It should be beatifully written. Pretend to be best financial/investment analyst in the whole world.
+    - Cash flow statement analysis. Use exact numbers from financial data and percentage changes. It should be beatifully written. Pretend to be best financial/investment analyst in the whole world.
+    - Margins and ratios. Use exact numbers from financial data and percentage changes. It should be beatifully written. Pretend to be best financial/investment analyst in the whole world.
+    - Concluding statement on financial health. From written text above.
 
-    Use the following format as an example for the response, ensuring each section is clearly separated by paragraphs and new lines. IT IS ONLY THE EXAMPLE, DON'T USE IT COPY PASTED ONE. I JUST GAVE YOU TO UNDERSTAND THE STRUCTURE HOW IT SHOULD BE LOOKED:
-
-    **Key Trends Over the Past Four Fiscal Years:**
-    - Total Revenue has shown consistent growth from X billion in 2021 to Y billion in 2024. 
-    - Net Income has also increased significantly from A billion in 2021 to B billion in 2024. 
-    - Operating Income has shown a positive trend, reaching C billion in 2024. 
-    - Free Cash Flow has experienced substantial growth, reaching D billion in 2024. 
-
-    **Balance Sheet Analysis:**
-    - Net Debt has fluctuated over the years, with a decrease from E billion in 2022 to F billion in 2024. 
-    - Cash and Cash Equivalents have increased steadily, indicating improved liquidity. 
-    - Total Debt has shown fluctuations but remained manageable over the years. 
-
-    **Cash Flow Statement Analysis:**
-    - Operating Cash Flow has shown positive growth, reaching G billion in 2024. 
-    - Investing Cash Flow has fluctuated over the years, indicating varying investment activities.
-    - Financing Cash Flow experienced notable fluctuations, with significant changes in debt issuance and stock repurchases. 
-
-    **Margins and Ratios:**
-    - Net Income Margin has shown improvement over the years, reflecting better profitability. 
-    - Gross Margin has remained relatively stable, indicating efficient cost management. 
-    - ROA (Return on Assets) and ROE (Return on Equity) have shown positive trends, showcasing healthy asset utilization and shareholder returns. 
-    - Current Ratio and Quick Ratio have not been provided in the data but would be essential for evaluating liquidity. 
-
-    **Concluding Statement on Financial Health:**
-    The company has displayed strong financial performance over the past four years, characterized by revenue growth, increased profitability, and improving cash flow. While there have been fluctuations in debt levels and investment activities, the overall financial health appears robust with a focus on generating free cash flow and enhancing shareholder value. Investors should monitor liquidity ratios and debt management practices for a comprehensive assessment of the company's financial stability.
-
+Make all the names of headers just bold. Not in blue color of text. They should be just bold, and that's all. Make everything in all sub-headers as whole text, don't use bullet pointes, or "-" sign as a new paragraph or subparagraph. It should be beautifully written, as you best financial analyst in the world. Also, you don't have to separate text using lines. P.S: Don't use lines to separate text.
+Everything in the sections should be written as a text. Not just "naked" numbers.
     Here is the financial data for analysis:
     {financial_data}
     """
@@ -147,7 +135,11 @@ def analyze_financials(financial_data):
             {"role": "user", "content": prompt}
         ]
     )
-    return response.choices[0].message.content.strip()
+    analysis = response.choices[0].message.content.strip()
+
+    # Исправление форматирования с использованием маркдауна
+    formatted_analysis = analysis.replace(" - ", "\n- ")
+    return formatted_analysis
 
 
 
@@ -156,7 +148,7 @@ def calculate_volatility(symbol):
         stock = yf.Ticker(symbol)
         hist = stock.history(period="1y")
         log_returns = np.log(1 + hist['Close'].pct_change())
-        hist_volatility = np.std(log_returns) * np.sqrt(252)  # годовая волатильность
+        hist_volatility = np.std(log_returns) * np.sqrt(252)
         return hist_volatility
     except Exception as e:
         print(f"Error calculating volatility: {e}")
@@ -165,7 +157,7 @@ def calculate_volatility(symbol):
 
 def analyze_volatility(symbol, hist_volatility):
     openai.api_key = os.getenv("OPENAI_API_KEY")
-    prompt = f"Analyze the following volatility data for company {symbol}. Historical volatility: {hist_volatility:.2f}. Interpret this data and explain what it means for investors. (Historical Volatility is measured annually, not daily. just FYI. Just remember. For the promt: Remember, You are the greatest financial, statistic, econometric, economics and maths guy!!!!!. But You don't have to give any thanks. The text is purposed for the readers. Make it accuracy."
+    prompt = f"Analyze the following volatility data for company {symbol}. Historical volatility: {hist_volatility:.2f}. Interpret this data and explain what it means for investors."
     response = openai.chat.completions.create(
         model="gpt-3.5-turbo",
         messages=[
@@ -195,7 +187,18 @@ def analyze_risk(symbol, var_value):
         return "VaR calculation failed, unable to provide risk analysis."
 
     openai.api_key = os.getenv("OPENAI_API_KEY")
-    prompt = f"Analyze the following risk data for company {symbol}. Value at Risk (VaR): {var_value:.2f}. Please provide an interpretation and explain what it means for investors."
+    # Округление VaR до сотых
+    rounded_var = round(var_value, 2)
+
+    # Обновляем запрос к OpenAI
+    prompt = f"""
+    Analyze the following risk data for company {symbol}. Value at Risk (VaR): **{rounded_var}**. Please provide an interpretation and explain what it means for investors.
+
+    The output should have:
+    - Separate paragraphs for "Interpretation of VaR", "Operational Risks", and "Interest Rate Risks".
+    - Each paragraph should be well-structured with bold headers and easy to read.
+    """
+
     response = openai.chat.completions.create(
         model="gpt-3.5-turbo",
         messages=[
@@ -203,7 +206,27 @@ def analyze_risk(symbol, var_value):
             {"role": "user", "content": prompt}
         ]
     )
-    return response.choices[0].message.content.strip()
+
+    # Получаем ответ и разбиваем его на параграфы
+    analysis = response.choices[0].message.content.strip()
+
+    # Примерная структура текста с разделением на параграфы
+    formatted_analysis = f"""
+**Value at Risk (VaR):** **{rounded_var}**
+
+**Interpretation of VaR:** 
+The Value at Risk (VaR) of **{rounded_var}** implies that there is a 95% confidence level that the maximum potential loss for company {symbol}'s portfolio is $0.36 for every dollar invested within a specific time period. In other words, there is a 5% chance that losses could exceed **{rounded_var}**.
+
+**Operational Risks:**
+Operational risks refer to the potential losses a company may face due to internal processes, systems, or human errors. These risks could include supply chain disruptions, cybersecurity threats, regulatory compliance issues, or technology failures. A VaR of **{rounded_var}** indicates that there is a 5% chance that operational risks could lead to losses exceeding **{rounded_var}** for every dollar invested in company {symbol}.
+
+**Interest Rate Risks:**
+Interest rate risks relate to the potential impact of interest rate changes on a company's financial position. This risk is particularly relevant for companies like {symbol} that may have exposure to interest rate-sensitive instruments such as debt or derivatives. A VaR of **{rounded_var}** suggests that there is a 5% probability that fluctuations in interest rates could lead to losses exceeding **{rounded_var}** per dollar invested in {symbol}.
+
+By considering the VaR value along with specific risk categories, investors can assess the potential downside risk associated with investing in company {symbol} and make informed decisions to manage their overall portfolio risk effectively.
+    """
+
+    return formatted_analysis
 
 
 def black_scholes_call(S, K, T, r, sigma):
@@ -237,21 +260,26 @@ def historical_prices():
 def welcome():
     return render_template('welcome.html')
 
+
 @app.route('/methodology')
 def methodology():
     return render_template('methodology.html')
+
 
 @app.route('/contact')
 def contact():
     return render_template('contact.html')
 
+
 @app.route('/termsofuse')
 def terms_of_use():
     return render_template('termsofuse.html')
 
+
 @app.route('/index')
 def index():
     return render_template('index.html')
+
 
 @app.route('/company')
 def company():
@@ -260,44 +288,63 @@ def company():
     if not stock_data:
         return "Error fetching stock data"
 
-    historical_data = stock_data['historical_prices']
-    news = get_news(symbol)
-
-    print("Fetched news:", news)  # Debugging line
-
+    # Получение и форматирование финансовых данных
     financials = get_financials(symbol)
-    processed_financials = process_financial_data(financials)
-    financial_analysis = analyze_financials(processed_financials)
+    formatted_financials = format_financial_data(financials)
+    financial_analysis = analyze_financials(formatted_financials)
+
+    # Анализ исторических данных
+    historical_data = stock_data['historical_prices']
     price_chart = plot_historical_prices(historical_data)
+
+    # Анализ волатильности
     hist_volatility = calculate_volatility(symbol)
     formatted_hist_volatility = f"{hist_volatility:.2f}" if hist_volatility is not None else "N/A"
     volatility_analysis = analyze_volatility(symbol, hist_volatility)
-    risk_free_rate = get_risk_free_rate()
-    volatility = get_stock_volatility(symbol)
+
+    # Анализ риска
     var_value = calculate_var(symbol)
     risk_analysis = analyze_risk(symbol, var_value)
 
+    # Анализ новостей
+    news = get_news(symbol)
     news_analysis = analyze_news(news)
-    investment_opinion = get_investment_opinion(financial_analysis, volatility_analysis, risk_analysis, news_analysis)
 
-    print("News analysis result:", news_analysis)  # Debugging line
+    # Определение типа компании
+    company_type = get_company_type(symbol)
+    valuation = None
+
+    # Анализ DCF модели, если компания не из финансового сектора
+    if company_type == 'Non-Financial':
+        valuation = perform_dcf_analysis(symbol)
+        print("DCF Valuation Data:", valuation)  # Отладочное сообщение
+
+    # Генерация инвестиционного мнения
+    investment_opinion = get_investment_opinion(
+        financial_analysis,
+        volatility_analysis,
+        risk_analysis,
+        news_analysis,
+        valuation
+    )
 
     return render_template('company.html',
                            company_info=stock_data['company_info'],
                            historical_data=historical_data,
                            news=news,
-                           financials=processed_financials,
+                           financials=formatted_financials,
                            financial_analysis=financial_analysis,
                            price_chart=price_chart,
                            symbol=symbol,
-                           risk_free_rate=risk_free_rate,
-                           volatility=volatility,
+                           risk_free_rate=get_risk_free_rate(),
+                           volatility=get_stock_volatility(symbol),
                            hist_volatility=formatted_hist_volatility,
                            volatility_analysis=volatility_analysis,
                            risk={'var': var_value},
                            risk_analysis=risk_analysis,
                            news_analysis=news_analysis,
                            investment_opinion=investment_opinion,
+                           valuation=valuation,
                            call_price=None,
                            forecast=None,
                            active_tab="ai-analysis")
@@ -308,11 +355,11 @@ def calculate_black_scholes():
     S = float(request.form['S'])
     K = float(request.form['K'])
     T = float(request.form['T'])
-    r = get_risk_free_rate()  # Используем значение из функции
+    r = get_risk_free_rate()
     if r == "Error":
         return "Error fetching risk-free rate"
     sigma = float(request.form['sigma'])
-    symbol = request.form['symbol']  # Получение символа акции из скрытого поля
+    symbol = request.form['symbol']
 
     call_price = black_scholes_call(S, K, T, r, sigma)
     stock_data = get_stock_data(symbol)
@@ -321,10 +368,10 @@ def calculate_black_scholes():
 
     historical_data = stock_data['historical_prices']
     news = get_news(symbol)
-    financials = get_financials(symbol)  # Получение финансовых данных
+    financials = get_financials(symbol)
 
-    processed_financials = process_financial_data(financials)  # Обработка финансовых данных
-    financial_analysis = analyze_financials(processed_financials)
+    formatted_financials = format_financial_data(financials)
+    financial_analysis = analyze_financials(formatted_financials)
     price_chart = plot_historical_prices(historical_data)
     hist_volatility = calculate_volatility(symbol)
     formatted_hist_volatility = f"{hist_volatility:.2f}" if hist_volatility is not None else "N/A"
@@ -332,13 +379,13 @@ def calculate_black_scholes():
     var_value = calculate_var(symbol)
     risk_analysis = analyze_risk(symbol, var_value)
     news_analysis = analyze_news(news)
-    investment_opinion = get_investment_opinion(financial_analysis, volatility_analysis, risk_analysis, news_analysis)
+    investment_opinion = get_investment_opinion(financial_analysis, volatility_analysis, risk_analysis, news_analysis, valuation)
 
     return render_template('company.html',
                            company_info=stock_data['company_info'],
                            historical_data=historical_data,
                            news=news,
-                           financials=processed_financials,  # Передача обработанных финансовых данных в шаблон
+                           financials=formatted_financials,
                            call_price=call_price,
                            price_chart=price_chart,
                            symbol=symbol,
@@ -367,9 +414,9 @@ def forecast_arima_route():
 
     historical_data = stock_data['historical_prices']
     news = get_news(symbol)
-    financials = get_financials(symbol)  # Получение финансовых данных
+    financials = get_financials(symbol)
 
-    processed_financials = process_financial_data(financials)  # Обработка финансовых данных
+    formatted_financials = format_financial_data(financials)
 
     price_chart = plot_historical_prices(historical_data)
 
@@ -380,7 +427,7 @@ def forecast_arima_route():
                            company_info=stock_data['company_info'],
                            historical_data=historical_data,
                            news=news,
-                           financials=processed_financials,  # Передача обработанных финансовых данных в шаблон
+                           financials=formatted_financials,
                            price_chart=price_chart,
                            forecast=forecast,
                            symbol=symbol,
@@ -401,9 +448,9 @@ def forecast_prophet_route():
 
     historical_data = stock_data['historical_prices']
     news = get_news(symbol)
-    financials = get_financials(symbol)  # Получение финансовых данных
+    financials = get_financials(symbol)
 
-    processed_financials = process_financial_data(financials)  # Обработка финансовых данных
+    formatted_financials = format_financial_data(financials)
 
     price_chart = plot_historical_prices(historical_data)
 
@@ -414,7 +461,7 @@ def forecast_prophet_route():
                            company_info=stock_data['company_info'],
                            historical_data=historical_data,
                            news=news,
-                           financials=processed_financials,  # Передача обработанных финансовых данных в шаблон
+                           financials=formatted_financials,
                            price_chart=price_chart,
                            forecast=forecast,
                            symbol=symbol,
@@ -430,7 +477,6 @@ def ai_analysis():
     if not stock_data:
         return "Error fetching stock data"
 
-    # Dummy data for the example
     financials = {
         'revenue': 274.5,
         'net_income': 57.4,
