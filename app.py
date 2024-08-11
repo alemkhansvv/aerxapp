@@ -10,7 +10,7 @@ import numpy as np
 import scipy.stats as stats
 import yfinance as yf
 import os
-from flaskext.markdown import Markdown
+from flask_markdown import Markdown
 from markupsafe import Markup
 import sys
 
