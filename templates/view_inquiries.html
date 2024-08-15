@@ -1,0 +1,20 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>View Inquiries</title>
+</head>
+<body>
+    <h1>Submitted Inquiries</h1>
+    <ul>
+        {% for inquiry in inquiries %}
+            <li>
+                <strong>{{ inquiry[1] }} ({{ inquiry[3] }})</strong><br>
+                {{ inquiry[2] }}<br>
+                {{ inquiry[4] }}<br>
+                <em>Submitted on: {{ inquiry[5] }}</em>
+            </li>
+        {% endfor %}
+    </ul>
+</body>
+</html>

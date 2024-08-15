@@ -1,5 +1,5 @@
 import locale
-from flask import Flask, render_template, request
+from flask import Flask, render_template, request, redirect, url_for, session, flash, jsonify
 from api_helpers import get_stock_data, get_news, get_financials, forecast_arima, forecast_prophet, analyze_news, fetch_full_text, get_investment_opinion, get_company_type, analyze_dcf_model
 import openai
 from dotenv import load_dotenv
@@ -13,8 +13,14 @@ import os
 from markupsafe import Markup
 import sys
 from markdown import markdown
-
-sys.modules['flask.Markup'] = Markup
+from auth import register_user, login_user, user_exists
+from functools import wraps
+from flask_sqlalchemy import SQLAlchemy
+from werkzeug.security import generate_password_hash, check_password_hash
+from flask_migrate import Migrate
+from models import db, User
+import sqlite3
+from flask_mail import Mail, Message
 
 # Установка локали для форматирования чисел
 locale.setlocale(locale.LC_ALL, '')
@@ -23,11 +29,18 @@ locale.setlocale(locale.LC_ALL, '')
 load_dotenv()
 
 app = Flask(__name__)
-@app.template_filter('markdown')
-def markdown_filter(text):
-    return Markup(markdown(text))
-
+app.template_filter('markdown')(lambda text: Markup(markdown(text)))
 app.jinja_env.globals.update(enumerate=enumerate)
+
+# Настройки базы данных SQLAlchemy
+app.config['SQLALCHEMY_DATABASE_URI'] = os.getenv('DATABASE_URL', 'sqlite:///instance/database.db')
+app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
+db.init_app(app)  # Инициализация SQLAlchemy с приложением
+migrate = Migrate(app, db)
+
+# Создание таблицы базы данных
+with app.app_context():
+    db.create_all()
 
 @app.template_filter('intcomma')
 def intcomma(value):
@@ -36,11 +49,9 @@ def intcomma(value):
 @app.template_filter('round_and_comma')
 def round_and_comma(value, decimals=2):
     try:
-        # Попробуем преобразовать значение в float и округлить
         value = float(value)
         value = round(value, decimals)
     except (ValueError, TypeError):
-        # Если преобразование не удалось, возвращаем значение как есть
         return value
     return "{:,}".format(value)
 
@@ -50,6 +61,181 @@ FINNHUB_API_KEY = os.getenv("FINNHUB_API_KEY")
 # Установка API ключа OpenAI
 openai.api_key = os.getenv("OPENAI_API_KEY")
 
+app.secret_key = os.getenv("SECRET_KEY", "default_secret_key")
+
+@app.route('/register', methods=['POST'])
+def register():
+    email = request.form['email']
+    password = request.form['password']
+    confirm_password = request.form['confirmPassword']
+
+    if password != confirm_password:
+        return jsonify({'status': 'error', 'message': 'Passwords do not match!'})
+
+    if user_exists(email):
+        return jsonify({'status': 'error', 'message': 'User already exists!'})
+
+    register_user(email, password)
+
+    user = login_user(email, password)
+    session['user_id'] = user.id
+    session['user_email'] = user.email
+
+    return jsonify({'status': 'success', 'message': 'User registered successfully!'})
+
+@app.route('/login', methods=['GET', 'POST'])
+def login_page():
+    if request.method == 'POST':
+        email = request.form['email']
+        password = request.form['password']
+        user = login_user(email, password)
+
+        if user:
+            session['user_id'] = user.id
+            session['user_email'] = user.email
+            return redirect(url_for('index_page'))
+        else:
+            flash('Invalid credentials')
+            return redirect(url_for('login_page'))
+
+    return render_template('login.html')
+
+# Декоратор для защиты маршрутов, требующих авторизации
+def login_required(f):
+    @wraps(f)
+    def decorated_function(*args, **kwargs):
+        if 'user_id' not in session:
+            flash('You need to be logged in to access this page.')
+            return redirect(url_for('login_page'))
+        return f(*args, **kwargs)
+    return decorated_function
+
+# Выход пользователя
+@app.route('/logout')
+def logout():
+    session.pop('user_id', None)
+    session.pop('user_email', None)
+    return redirect(url_for('welcome'))
+
+@app.route('/')
+def welcome():
+    user_email = session.get('user_email')
+    return render_template('welcome.html', user=user_email)
+
+@app.route('/methodology')
+def methodology():
+    return render_template('methodology.html')
+
+@app.route('/privacypolicy')
+def privacypolicy():
+    return render_template('privacypolicy.html')
+
+@app.route('/cookiepolicy')
+def cookiepolicy():
+    return render_template('cookiepolicy.html')
+
+# Создаем базу данных и таблицу для хранения сообщений
+def init_db():
+    conn = sqlite3.connect('database.db')
+    cursor = conn.cursor()
+    cursor.execute('''
+        CREATE TABLE IF NOT EXISTS inquiries (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            name TEXT NOT NULL,
+            country TEXT NOT NULL,
+            email TEXT NOT NULL,
+            message TEXT NOT NULL,
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        )
+    ''')
+    conn.commit()
+    conn.close()
+
+# Инициализируем базу данных
+init_db()
+
+@app.route('/contact', methods=['POST'])
+def contact():
+    if request.method == 'POST':
+        name = request.form['name']
+        email = request.form['email']
+        country = request.form['country']
+        message = request.form['message']
+
+        # Сохранение данных в базу данных
+        conn = sqlite3.connect('database.db')
+        cursor = conn.cursor()
+        cursor.execute("INSERT INTO inquiries (name, country, email, message) VALUES (?, ?, ?, ?)",
+                       (name, country, email, message))
+        conn.commit()
+        conn.close()
+
+        # Флеш-сообщение об успехе
+        flash('Inquiry sent successfully!', 'success')
+        return redirect(url_for('welcome'))
+
+    return render_template('welcome.html')
+
+@app.route('/admin/inquiries')
+def view_inquiries():
+    conn = sqlite3.connect('database.db')
+    cursor = conn.cursor()
+    cursor.execute('SELECT * FROM inquiries ORDER BY created_at DESC')
+    inquiries = cursor.fetchall()
+    conn.close()
+    return render_template('view_inquiries.html', inquiries=inquiries)
+
+
+@app.route('/termsofuse')
+def terms_of_use():
+    return render_template('termsofuse.html')
+
+@app.route('/index')
+@login_required
+def index_page():
+    return render_template('index.html')
+
+@app.route('/registration')
+def registration_page():
+    return render_template('registration.html')
+
+@app.route('/usersettings')
+@login_required
+def user_settings_page():
+    user_email = session.get('user_email')
+    if not user_email:
+        flash('User email not found. Please log in.')
+        return redirect(url_for('login_page'))
+
+    conn = sqlite3.connect('instance/database.db')
+    conn.row_factory = sqlite3.Row
+    user = conn.execute('SELECT * FROM users WHERE email = ?', (user_email,)).fetchone()
+    conn.close()
+
+    return render_template('usersettings.html', email=user_email, user=user)
+
+@app.route('/save_user_settings', methods=['POST'])
+@login_required
+def save_user_settings():
+    user_id = session['user_id']
+    full_name = request.form['fullName']
+    address = request.form['address']
+    country = request.form['country']
+    city = request.form['city']
+    postal_code = request.form['postalCode']
+    phone = request.form['phone']
+    birthdate = request.form['birthdate']
+
+    conn = sqlite3.connect('instance/database.db')
+    conn.execute('''
+        UPDATE users
+        SET full_name = ?, address = ?, country = ?, city = ?, postal_code = ?, phone = ?, birthdate = ?
+        WHERE id = ?
+    ''', (full_name, address, country, city, postal_code, phone, birthdate, user_id))
+    conn.commit()
+    conn.close()
+
+    return 'Settings saved successfully', 200
 
 def get_risk_free_rate():
     try:
@@ -58,13 +244,11 @@ def get_risk_free_rate():
         if data.empty:
             return "No data available"
         latest_data = data.iloc[-1]
-        print("Latest data:", latest_data)
         risk_free_rate = latest_data['Close'] / 100
         return risk_free_rate
     except Exception as e:
         print(f"Error fetching risk-free rate: {e}")
         return "Error"
-
 
 def get_stock_volatility(symbol):
     try:
@@ -76,7 +260,6 @@ def get_stock_volatility(symbol):
     except Exception as e:
         print(f"Error calculating volatility: {e}")
         return None
-
 
 def plot_historical_prices(historical_data):
     df = pd.DataFrame(historical_data)
@@ -111,7 +294,6 @@ def plot_historical_prices(historical_data):
     graph_html = fig.to_html(full_html=False)
     return graph_html
 
-
 def format_financial_data(financial_data):
     formatted_data = {}
     for key, value in financial_data.items():
@@ -122,21 +304,16 @@ def format_financial_data(financial_data):
         formatted_data[key] = df.T
     return formatted_data
 
-
 def analyze_financials(financial_data):
     openai.api_key = os.getenv("OPENAI_API_KEY")
     prompt = f"""
     Analyze the following financial data and provide a structured summary for each section. Use the exact numbers and changes in percentages. The summary should cover:
-
     - Key trends over the past four fiscal years.
-    - Income Statement analysis. Use exact numbers from financial data and percentage changes. It should be beatifully written. Pretend to be best financial/investment analyst in the whole world.
-    - Balance sheet analysis. Use exact numbers from financial data and percentage changes. It should be beatifully written. Pretend to be best financial/investment analyst in the whole world.
-    - Cash flow statement analysis. Use exact numbers from financial data and percentage changes. It should be beatifully written. Pretend to be best financial/investment analyst in the whole world.
-    - Margins and ratios. Use exact numbers from financial data and percentage changes. It should be beatifully written. Pretend to be best financial/investment analyst in the whole world.
+    - Income Statement analysis. Use exact numbers from financial data and percentage changes. It should be beautifully written. Pretend to be best financial/investment analyst in the whole world.
+    - Balance sheet analysis. Use exact numbers from financial data and percentage changes. It should be beautifully written. Pretend to be best financial/investment analyst in the whole world.
+    - Cash flow statement analysis. Use exact numbers from financial data and percentage changes. It should be beautifully written. Pretend to be best financial/investment analyst in the whole world.
+    - Margins and ratios. Use exact numbers from financial data and percentage changes. It should be beautifully written. Pretend to be best financial/investment analyst in the whole world.
     - Concluding statement on financial health. From written text above.
-
-Make all the names of headers just bold. Not in blue color of text. They should be just bold, and that's all. Make everything in all sub-headers as whole text, don't use bullet pointes, or "-" sign as a new paragraph or subparagraph. It should be beautifully written, as you best financial analyst in the world. Also, you don't have to separate text using lines. P.S: Don't use lines to separate text.
-Everything in the sections should be written as a text. Not just "naked" numbers.
     Here is the financial data for analysis:
     {financial_data}
     """
@@ -148,12 +325,8 @@ Everything in the sections should be written as a text. Not just "naked" numbers
         ]
     )
     analysis = response.choices[0].message.content.strip()
-
-    # Исправление форматирования с использованием маркдауна
     formatted_analysis = analysis.replace(" - ", "\n- ")
     return formatted_analysis
-
-
 
 def calculate_volatility(symbol):
     try:
@@ -166,7 +339,6 @@ def calculate_volatility(symbol):
         print(f"Error calculating volatility: {e}")
         return None
 
-
 def analyze_volatility(symbol, hist_volatility):
     openai.api_key = os.getenv("OPENAI_API_KEY")
     prompt = f"Analyze the following volatility data for company {symbol}. Historical volatility: {hist_volatility:.2f}. Interpret this data and explain what it means for investors."
@@ -178,7 +350,6 @@ def analyze_volatility(symbol, hist_volatility):
         ]
     )
     return response.choices[0].message.content.strip()
-
 
 def calculate_var(symbol, confidence_level=0.95):
     try:
@@ -193,24 +364,17 @@ def calculate_var(symbol, confidence_level=0.95):
         print(f"Error calculating VaR: {e}")
         return None
 
-
 def analyze_risk(symbol, var_value):
     if var_value is None:
         return "VaR calculation failed, unable to provide risk analysis."
-
     openai.api_key = os.getenv("OPENAI_API_KEY")
-    # Округление VaR до сотых
     rounded_var = round(var_value, 2)
-
-    # Обновляем запрос к OpenAI
     prompt = f"""
     Analyze the following risk data for company {symbol}. Value at Risk (VaR): **{rounded_var}**. Please provide an interpretation and explain what it means for investors.
-
     The output should have:
     - Separate paragraphs for "Interpretation of VaR", "Operational Risks", and "Interest Rate Risks".
     - Each paragraph should be well-structured with bold headers and easy to read.
     """
-
     response = openai.chat.completions.create(
         model="gpt-3.5-turbo",
         messages=[
@@ -218,28 +382,18 @@ def analyze_risk(symbol, var_value):
             {"role": "user", "content": prompt}
         ]
     )
-
-    # Получаем ответ и разбиваем его на параграфы
     analysis = response.choices[0].message.content.strip()
-
-    # Примерная структура текста с разделением на параграфы
     formatted_analysis = f"""
 **Value at Risk (VaR):** **{rounded_var}**
-
 **Interpretation of VaR:** 
 The Value at Risk (VaR) of **{rounded_var}** implies that there is a 95% confidence level that the maximum potential loss for company {symbol}'s portfolio is $0.36 for every dollar invested within a specific time period. In other words, there is a 5% chance that losses could exceed **{rounded_var}**.
-
 **Operational Risks:**
 Operational risks refer to the potential losses a company may face due to internal processes, systems, or human errors. These risks could include supply chain disruptions, cybersecurity threats, regulatory compliance issues, or technology failures. A VaR of **{rounded_var}** indicates that there is a 5% chance that operational risks could lead to losses exceeding **{rounded_var}** for every dollar invested in company {symbol}.
-
 **Interest Rate Risks:**
 Interest rate risks relate to the potential impact of interest rate changes on a company's financial position. This risk is particularly relevant for companies like {symbol} that may have exposure to interest rate-sensitive instruments such as debt or derivatives. A VaR of **{rounded_var}** suggests that there is a 5% probability that fluctuations in interest rates could lead to losses exceeding **{rounded_var}** per dollar invested in {symbol}.
-
 By considering the VaR value along with specific risk categories, investors can assess the potential downside risk associated with investing in company {symbol} and make informed decisions to manage their overall portfolio risk effectively.
     """
-
     return formatted_analysis
-
 
 def black_scholes_call(S, K, T, r, sigma):
     d1 = (np.log(S / K) + (r + 0.5 * sigma**2) * T) / (sigma * np.sqrt(T))
@@ -247,91 +401,45 @@ def black_scholes_call(S, K, T, r, sigma):
     call_price = S * stats.norm.cdf(d1) - K * np.exp(-r * T) * stats.norm.cdf(d2)
     return call_price
 
-
 @app.route('/historical-prices')
 def historical_prices():
     symbol = request.args.get('symbol')
     start_date = request.args.get('start_date')
     end_date = request.args.get('end_date')
-
     stock_data = get_stock_data(symbol, start_date, end_date)
     if not stock_data:
         return "Error fetching stock data"
-
     historical_data = stock_data['historical_prices']
     price_chart = plot_historical_prices(historical_data)
-
     return render_template('company.html',
                            symbol=symbol,
                            historical_data=historical_data,
                            price_chart=price_chart,
                            active_tab='historical-prices')
 
-
-@app.route('/')
-def welcome():
-    return render_template('welcome.html')
-
-
-@app.route('/methodology')
-def methodology():
-    return render_template('methodology.html')
-
-
-@app.route('/contact')
-def contact():
-    return render_template('contact.html')
-
-
-@app.route('/termsofuse')
-def terms_of_use():
-    return render_template('termsofuse.html')
-
-
-@app.route('/index')
-def index():
-    return render_template('index.html')
-
-
 @app.route('/company')
+@login_required
 def company():
     symbol = request.args.get('symbol')
     stock_data = get_stock_data(symbol)
     if not stock_data:
         return "Error fetching stock data"
-
-    # Получение и форматирование финансовых данных
     financials = get_financials(symbol)
     formatted_financials = format_financial_data(financials)
     financial_analysis = analyze_financials(formatted_financials)
-
-    # Анализ исторических данных
     historical_data = stock_data['historical_prices']
     price_chart = plot_historical_prices(historical_data)
-
-    # Анализ волатильности
     hist_volatility = calculate_volatility(symbol)
     formatted_hist_volatility = f"{hist_volatility:.2f}" if hist_volatility is not None else "N/A"
     volatility_analysis = analyze_volatility(symbol, hist_volatility)
-
-    # Анализ риска
     var_value = calculate_var(symbol)
     risk_analysis = analyze_risk(symbol, var_value)
-
-    # Анализ новостей
     news = get_news(symbol)
     news_analysis = analyze_news(news)
-
-    # Определение типа компании
     company_type = get_company_type(symbol)
     valuation = None
-
-    # Анализ DCF модели, если компания не из финансового сектора
     if company_type == 'Non-Financial':
         valuation = perform_dcf_analysis(symbol)
-        print("DCF Valuation Data:", valuation)  # Отладочное сообщение
-
-    # Генерация инвестиционного мнения
     investment_opinion = get_investment_opinion(
         financial_analysis,
         volatility_analysis,
@@ -339,7 +447,6 @@ def company():
         news_analysis,
         valuation
     )
-
     return render_template('company.html',
                            company_info=stock_data['company_info'],
                            historical_data=historical_data,
@@ -361,7 +468,6 @@ def company():
                            forecast=None,
                            active_tab="ai-analysis")
 
-
 @app.route('/calculate_black_scholes', methods=['POST'])
 def calculate_black_scholes():
     S = float(request.form['S'])
@@ -372,16 +478,13 @@ def calculate_black_scholes():
         return "Error fetching risk-free rate"
     sigma = float(request.form['sigma'])
     symbol = request.form['symbol']
-
     call_price = black_scholes_call(S, K, T, r, sigma)
     stock_data = get_stock_data(symbol)
     if not stock_data:
         return "Error fetching stock data"
-
     historical_data = stock_data['historical_prices']
     news = get_news(symbol)
     financials = get_financials(symbol)
-
     formatted_financials = format_financial_data(financials)
     financial_analysis = analyze_financials(formatted_financials)
     price_chart = plot_historical_prices(historical_data)
@@ -392,7 +495,6 @@ def calculate_black_scholes():
     risk_analysis = analyze_risk(symbol, var_value)
     news_analysis = analyze_news(news)
     investment_opinion = get_investment_opinion(financial_analysis, volatility_analysis, risk_analysis, news_analysis, valuation)
-
     return render_template('company.html',
                            company_info=stock_data['company_info'],
                            historical_data=historical_data,
@@ -413,28 +515,21 @@ def calculate_black_scholes():
                            investment_opinion=investment_opinion,
                            active_tab="mathematical-analysis")
 
-
 @app.route('/forecast_arima', methods=['POST'])
 def forecast_arima_route():
     symbol = request.form['symbol']
     periods = int(request.form['periods'])
     forecast = forecast_arima(symbol, periods)
-
     stock_data = get_stock_data(symbol)
     if not stock_data:
         return "Error fetching stock data"
-
     historical_data = stock_data['historical_prices']
     news = get_news(symbol)
     financials = get_financials(symbol)
-
     formatted_financials = format_financial_data(financials)
-
     price_chart = plot_historical_prices(historical_data)
-
     risk_free_rate = get_risk_free_rate()
     volatility = get_stock_volatility(symbol)
-
     return render_template('company.html',
                            company_info=stock_data['company_info'],
                            historical_data=historical_data,
@@ -446,29 +541,22 @@ def forecast_arima_route():
                            risk_free_rate=risk_free_rate,
                            volatility=volatility,
                            active_tab="mathematical-analysis")
-
 
 @app.route('/forecast_prophet', methods=['POST'])
 def forecast_prophet_route():
     symbol = request.form['symbol']
     periods = int(request.form['periods'])
     forecast = forecast_prophet(symbol, periods)
-
     stock_data = get_stock_data(symbol)
     if not stock_data:
         return "Error fetching stock data"
-
     historical_data = stock_data['historical_prices']
     news = get_news(symbol)
     financials = get_financials(symbol)
-
     formatted_financials = format_financial_data(financials)
-
     price_chart = plot_historical_prices(historical_data)
-
     risk_free_rate = get_risk_free_rate()
     volatility = get_stock_volatility(symbol)
-
     return render_template('company.html',
                            company_info=stock_data['company_info'],
                            historical_data=historical_data,
@@ -480,70 +568,6 @@ def forecast_prophet_route():
                            risk_free_rate=risk_free_rate,
                            volatility=volatility,
                            active_tab="mathematical-analysis")
-
-
-@app.route('/ai_analysis')
-def ai_analysis():
-    symbol = request.args.get('symbol')
-    stock_data = get_stock_data(symbol)
-    if not stock_data:
-        return "Error fetching stock data"
-
-    financials = {
-        'revenue': 274.5,
-        'net_income': 57.4,
-        'gross_margin': 40,
-        'operating_margin': 30,
-        'roe': 80,
-        'roa': 20
-    }
-    volatility = {
-        'historical': 20,
-        'forecast': 18
-    }
-    risk = {
-        'var': 5,
-        'beta': 1.2,
-        'recession': 20,
-        'market_shock': 15
-    }
-    forecast = {
-        'prophet_3m': 150
-    }
-    news = [
-        {'title': 'Apple announces new iPhone', 'date': '2024-08-01',
-         'description': 'Apple announced the release of its new iPhone model...'},
-        {'title': 'Apple expands AI initiatives', 'date': '2024-07-28',
-         'description': 'Apple is investing heavily in AI research...'}
-    ]
-    sentiment = {
-        'overall': 'Позитивный'
-    }
-    valuation = {
-        'dcf': 160,
-        'pe': 30
-    }
-    recommendation = {
-        'action': 'Покупка',
-        'target_price': 155,
-        'strategy': 'Долгосрочная'
-    }
-    conclusion = "Apple Inc. демонстрирует сильные финансовые показатели и стабильный рост. Рекомендуется покупать акции Apple Inc. с целевой ценой $155."
-
-    return render_template('company.html',
-                           company_info=stock_data['company_info'],
-                           financials=financials,
-                           volatility=volatility,
-                           risk=risk,
-                           forecast=forecast,
-                           news=news,
-                           sentiment=sentiment,
-                           valuation=valuation,
-                           recommendation=recommendation,
-                           conclusion=conclusion,
-                           symbol=symbol,
-                           active_tab="ai-analysis")
-
 
 if __name__ == '__main__':
     app.run(debug=True)

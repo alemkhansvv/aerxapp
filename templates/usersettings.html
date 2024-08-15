@@ -1,0 +1,239 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>User Settings</title>
+    <link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/4.5.2/css/bootstrap.min.css">
+    <style>
+        body,
+        html {
+            height: 100%;
+            margin: 0;
+            font-family: Arial, sans-serif;
+            background: linear-gradient(rgba(0, 0, 0, 0.5), rgba(0, 0, 0, 0.5)), url('{{ url_for('static', filename='images/Background1.jpg') }}') no-repeat center center fixed;
+            background-size: cover;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+        }
+
+        .navbar {
+            position: fixed;
+            top: 20px;
+            left: 20px;
+            padding: 10px 20px;
+            background-color: white;
+            border-radius: 5px;
+            box-shadow: 0px 4px 10px rgba(0, 0, 0, 0.1);
+            font-size: 16px;
+            z-index: 1000;
+        }
+
+        .navbar a {
+            color: black;
+            text-decoration: none;
+            font-weight: bold;
+        }
+
+        .navbar a:hover {
+            text-decoration: underline;
+        }
+
+        .settings-container {
+            display: flex;
+            width: 1200px;
+            height: 800px;
+            background-color: rgba(255, 255, 255, 0.9);
+            box-shadow: 0px 4px 10px rgba(0, 0, 0, 0.2);
+            border-radius: 10px;
+            overflow: hidden;
+            margin: 0 auto;
+        }
+
+        .sidebar {
+            width: 250px;
+            background-color: #f8f8f8;
+            padding: 20px;
+            border-right: 1px solid #ddd;
+        }
+
+        .sidebar h3 {
+            margin-bottom: 20px;
+            font-size: 18px;
+            font-weight: bold;
+        }
+
+        .sidebar a {
+            display: block;
+            padding: 10px 15px;
+            color: black;
+            text-decoration: none;
+            border-radius: 5px;
+            margin-bottom: 10px;
+            font-size: 16px;
+            cursor: pointer;
+        }
+
+        .sidebar a:hover,
+        .sidebar a.active {
+            background-color: #ddd;
+        }
+
+        .content {
+            padding: 40px;
+            flex: 1;
+            display: none;
+            box-sizing: border-box;
+        }
+
+        .content.active {
+            display: block;
+        }
+
+        .content h3 {
+            margin-bottom: 20px;
+            font-size: 24px;
+            font-weight: bold;
+        }
+
+        .content form {
+            max-width: 600px;
+            margin: 0 auto;
+        }
+
+        .content label {
+            font-size: 14px;
+            margin-bottom: 5px;
+            display: block;
+            color: #333;
+            text-align: left;
+        }
+
+        .content input,
+        .content select {
+            width: 100%;
+            padding: 10px;
+            margin-bottom: 10px;
+            border-radius: 5px;
+            border: 1px solid #ccc;
+            font-size: 14px;
+        }
+
+        .content button {
+            width: 100%;
+            padding: 10px;
+            border-radius: 5px;
+            border: none;
+            background-color: black;
+            color: white;
+            font-size: 16px;
+            cursor: pointer;
+            margin-top: 10px;
+        }
+
+        .content button:hover {
+            background-color: #333;
+        }
+    </style>
+</head>
+
+<body>
+
+    <div class="navbar">
+        <a href="/" class="home-button">Home</a>
+    </div>
+
+    <div class="settings-container">
+        <div class="sidebar">
+            <h3>Settings</h3>
+            <a href="#" class="tab-link active" data-tab="personal-info">Personal Information</a>
+            <a href="#" class="tab-link" data-tab="account-security">Account Security</a>
+            <a href="#" class="tab-link" data-tab="notification-settings">Notification Settings</a>
+        </div>
+
+        <div class="content active" id="personal-info">
+            <h3>Personal Information</h3>
+            <form id="userSettingsForm" method="POST" action="{{ url_for('save_user_settings') }}">
+                <label for="fullName">Full Name *</label>
+                <input type="text" id="fullName" name="fullName" placeholder="Enter your full name" value="{{ full_name }}" required>
+
+                <label for="address">Address *</label>
+                <input type="text" id="address" name="address" placeholder="Enter your address" value="{{ address }}" required>
+
+                <label for="country">Country *</label>
+                <select id="country" name="country" required>
+                    <option value="">Select your country</option>
+                    <!-- Здесь идет список стран -->
+                    <option value="United States" {% if country == 'United States' %}selected{% endif %}>United States</option>
+                    <option value="Canada" {% if country == 'Canada' %}selected{% endif %}>Canada</option>
+                    <!-- Добавьте сюда остальные страны -->
+                </select>
+
+                <label for="city">City *</label>
+                <input type="text" id="city" name="city" placeholder="Enter your city" value="{{ city }}" required>
+
+                <label for="postalCode">Postal Code *</label>
+                <input type="text" id="postalCode" name="postalCode" placeholder="Enter your postal code" value="{{ postal_code }}" required>
+
+                <label for="phone">Phone *</label>
+                <input type="tel" id="phone" name="phone" placeholder="Enter your phone number" value="{{ phone }}" required>
+
+                <label for="email">Email *</label>
+                <input type="email" id="email" name="email" value="{{ email }}" disabled>
+
+                <label for="birthdate">Birthdate *</label>
+                <input type="date" id="birthdate" name="birthdate" value="{{ birthdate }}" required>
+
+                <button type="submit">Save</button>
+            </form>
+        </div>
+
+        <div class="content" id="account-security">
+            <h3>Account Security</h3>
+            <form id="accountSecurityForm" method="POST" action="{{ url_for('save_user_settings') }}">
+                <label for="newEmail">New Email *</label>
+                <input type="email" id="newEmail" name="newEmail" placeholder="Enter your new email" required>
+
+                <label for="currentPassword">Current Password *</label>
+                <input type="password" id="currentPassword" name="currentPassword" placeholder="Enter your current password" required>
+
+                <label for="newPassword">New Password *</label>
+                <input type="password" id="newPassword" name="newPassword" placeholder="Enter your new password" required>
+
+                <label for="confirmPassword">Confirm New Password *</label>
+                <input type="password" id="confirmPassword" name="confirmPassword" placeholder="Confirm your new password" required>
+
+                <button type="submit">Update</button>
+            </form>
+        </div>
+
+        <div class="content" id="notification-settings">
+            <h3>Notification Settings</h3>
+            <!-- Здесь можно добавить формы для управления уведомлениями -->
+        </div>
+    </div>
+
+    <script src="https://kit.fontawesome.com/a076d05399.js" crossorigin="anonymous"></script>
+
+    <script>
+        const tabs = document.querySelectorAll('.tab-link');
+        const contents = document.querySelectorAll('.content');
+
+        tabs.forEach(tab => {
+            tab.addEventListener('click', (e) => {
+                e.preventDefault();
+
+                tabs.forEach(item => item.classList.remove('active'));
+                tab.classList.add('active');
+
+                contents.forEach(content => content.classList.remove('active'));
+                document.getElementById(tab.dataset.tab).classList.add('active');
+            });
+        });
+    </script>
+
+</body>
+
+</html>
