@@ -20,7 +20,6 @@ from werkzeug.security import generate_password_hash, check_password_hash
 from flask_migrate import Migrate
 from models import db, User
 import sqlite3
-from flask_mail import Mail, Message
 
 # Установка локали для форматирования чисел
 locale.setlocale(locale.LC_ALL, '')
@@ -35,7 +34,13 @@ app.jinja_env.globals.update(enumerate=enumerate)
 # Настройки базы данных SQLAlchemy
 app.config['SQLALCHEMY_DATABASE_URI'] = os.getenv('DATABASE_URL', 'sqlite:///instance/database.db')
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
-db.init_app(app)  # Инициализация SQLAlchemy с приложением
+
+# Убедимся, что если используется Heroku Postgres, то SQLAlchemy корректно распознает URI
+if app.config['SQLALCHEMY_DATABASE_URI'].startswith("postgres://"):
+    app.config['SQLALCHEMY_DATABASE_URI'] = app.config['SQLALCHEMY_DATABASE_URI'].replace("postgres://", "postgresql://", 1)
+
+# Инициализация SQLAlchemy с приложением
+db = SQLAlchemy(app)
 migrate = Migrate(app, db)
 
 # Создание таблицы базы данных
