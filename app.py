@@ -288,7 +288,7 @@ def analyze_financials(financial_data):
     Here is the financial data for analysis:
     {financial_data}
     """
-    response = openai.ChatCompletion.create(
+    response = openai.chat.completions.create(
         model="gpt-3.5-turbo",
         messages=[
             {"role": "system", "content": "You are a financial analyst."},
@@ -313,7 +313,7 @@ def calculate_volatility(symbol):
 def analyze_volatility(symbol, hist_volatility):
     openai.api_key = os.getenv("OPENAI_API_KEY")
     prompt = f"Analyze the following volatility data for company {symbol}. Historical volatility: {hist_volatility:.2f}. Interpret this data and explain what it means for investors."
-    response = openai.ChatCompletion.create(
+    response = openai.chat.completions.create(
         model="gpt-3.5-turbo",
         messages=[
             {"role": "system", "content": "You are a financial analyst."},
@@ -346,7 +346,7 @@ def analyze_risk(symbol, var_value):
     - Separate paragraphs for "Interpretation of VaR", "Operational Risks", and "Interest Rate Risks".
     - Each paragraph should be well-structured with bold headers and easy to read.
     """
-    response = openai.ChatCompletion.create(
+    response = openai.chat.completions.create(
         model="gpt-3.5-turbo",
         messages=[
             {"role": "system", "content": "You are a financial analyst."},
