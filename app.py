@@ -11,7 +11,6 @@ import scipy.stats as stats
 import yfinance as yf
 import os
 from markupsafe import Markup
-import sys
 from markdown import markdown
 from auth import register_user, login_user, user_exists
 from functools import wraps
@@ -19,7 +18,6 @@ from flask_sqlalchemy import SQLAlchemy
 from werkzeug.security import generate_password_hash, check_password_hash
 from flask_migrate import Migrate
 from models import db, User
-import sqlite3
 
 # Установка локали для форматирования чисел
 locale.setlocale(locale.LC_ALL, '')
@@ -27,25 +25,33 @@ locale.setlocale(locale.LC_ALL, '')
 # Загрузка переменных из .env файла
 load_dotenv()
 
-app = Flask(__name__)
-app.template_filter('markdown')(lambda text: Markup(markdown(text)))
-app.jinja_env.globals.update(enumerate=enumerate)
+def create_app():
+    app = Flask(__name__)
 
-# Настройки базы данных SQLAlchemy
-app.config['SQLALCHEMY_DATABASE_URI'] = os.getenv('DATABASE_URL', 'sqlite:///instance/database.db')
-app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
+    # Настройки базы данных
+    DATABASE_URL = os.getenv('DATABASE_URL', 'sqlite:///instance/database.db')
+    app.config['SQLALCHEMY_DATABASE_URI'] = DATABASE_URL
+    app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 
-# Убедимся, что если используется Heroku Postgres, то SQLAlchemy корректно распознает URI
-if app.config['SQLALCHEMY_DATABASE_URI'].startswith("postgres://"):
-    app.config['SQLALCHEMY_DATABASE_URI'] = app.config['SQLALCHEMY_DATABASE_URI'].replace("postgres://", "postgresql://", 1)
+    # Проверка URI базы данных
+    if app.config['SQLALCHEMY_DATABASE_URI'].startswith("postgres://"):
+        app.config['SQLALCHEMY_DATABASE_URI'] = app.config['SQLALCHEMY_DATABASE_URI'].replace("postgres://", "postgresql://", 1)
 
-# Инициализация SQLAlchemy с приложением
-db = SQLAlchemy(app)
-migrate = Migrate(app, db)
+    # Инициализация SQLAlchemy и миграций
+    db.init_app(app)
+    Migrate(app, db)
 
-# Создание таблицы базы данных
-with app.app_context():
-    db.create_all()
+    # Создание таблицы базы данных
+    with app.app_context():
+        db.create_all()
+
+    return app
+
+app = create_app()
+
+@app.template_filter('markdown')
+def markdown_filter(text):
+    return Markup(markdown(text))
 
 @app.template_filter('intcomma')
 def intcomma(value):
@@ -127,6 +133,19 @@ def welcome():
     user_email = session.get('user_email')
     return render_template('welcome.html', user=user_email)
 
+@app.route('/contact', methods=['POST'])
+def contact():
+    name = request.form['name']
+    country = request.form['country']
+    email = request.form['email']
+    message = request.form['message']
+
+    # Добавьте здесь логику для обработки сообщения
+    # Например, сохранить данные в базу данных или отправить их по электронной почте
+
+    flash('Your message has been sent successfully!', 'success')
+    return redirect(url_for('welcome'))
+
 @app.route('/methodology')
 def methodology():
     return render_template('methodology.html')
@@ -138,58 +157,6 @@ def privacypolicy():
 @app.route('/cookiepolicy')
 def cookiepolicy():
     return render_template('cookiepolicy.html')
-
-# Создаем базу данных и таблицу для хранения сообщений
-def init_db():
-    conn = sqlite3.connect('database.db')
-    cursor = conn.cursor()
-    cursor.execute('''
-        CREATE TABLE IF NOT EXISTS inquiries (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            name TEXT NOT NULL,
-            country TEXT NOT NULL,
-            email TEXT NOT NULL,
-            message TEXT NOT NULL,
-            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-        )
-    ''')
-    conn.commit()
-    conn.close()
-
-# Инициализируем базу данных
-init_db()
-
-@app.route('/contact', methods=['POST'])
-def contact():
-    if request.method == 'POST':
-        name = request.form['name']
-        email = request.form['email']
-        country = request.form['country']
-        message = request.form['message']
-
-        # Сохранение данных в базу данных
-        conn = sqlite3.connect('database.db')
-        cursor = conn.cursor()
-        cursor.execute("INSERT INTO inquiries (name, country, email, message) VALUES (?, ?, ?, ?)",
-                       (name, country, email, message))
-        conn.commit()
-        conn.close()
-
-        # Флеш-сообщение об успехе
-        flash('Inquiry sent successfully!', 'success')
-        return redirect(url_for('welcome'))
-
-    return render_template('welcome.html')
-
-@app.route('/admin/inquiries')
-def view_inquiries():
-    conn = sqlite3.connect('database.db')
-    cursor = conn.cursor()
-    cursor.execute('SELECT * FROM inquiries ORDER BY created_at DESC')
-    inquiries = cursor.fetchall()
-    conn.close()
-    return render_template('view_inquiries.html', inquiries=inquiries)
-
 
 @app.route('/termsofuse')
 def terms_of_use():
@@ -212,10 +179,7 @@ def user_settings_page():
         flash('User email not found. Please log in.')
         return redirect(url_for('login_page'))
 
-    conn = sqlite3.connect('instance/database.db')
-    conn.row_factory = sqlite3.Row
-    user = conn.execute('SELECT * FROM users WHERE email = ?', (user_email,)).fetchone()
-    conn.close()
+    user = User.query.filter_by(email=user_email).first()
 
     return render_template('usersettings.html', email=user_email, user=user)
 
@@ -231,14 +195,16 @@ def save_user_settings():
     phone = request.form['phone']
     birthdate = request.form['birthdate']
 
-    conn = sqlite3.connect('instance/database.db')
-    conn.execute('''
-        UPDATE users
-        SET full_name = ?, address = ?, country = ?, city = ?, postal_code = ?, phone = ?, birthdate = ?
-        WHERE id = ?
-    ''', (full_name, address, country, city, postal_code, phone, birthdate, user_id))
-    conn.commit()
-    conn.close()
+    user = User.query.get(user_id)
+    user.full_name = full_name
+    user.address = address
+    user.country = country
+    user.city = city
+    user.postal_code = postal_code
+    user.phone = phone
+    user.birthdate = birthdate
+
+    db.session.commit()
 
     return 'Settings saved successfully', 200
 
@@ -322,7 +288,7 @@ def analyze_financials(financial_data):
     Here is the financial data for analysis:
     {financial_data}
     """
-    response = openai.chat.completions.create(
+    response = openai.ChatCompletion.create(
         model="gpt-3.5-turbo",
         messages=[
             {"role": "system", "content": "You are a financial analyst."},
@@ -347,7 +313,7 @@ def calculate_volatility(symbol):
 def analyze_volatility(symbol, hist_volatility):
     openai.api_key = os.getenv("OPENAI_API_KEY")
     prompt = f"Analyze the following volatility data for company {symbol}. Historical volatility: {hist_volatility:.2f}. Interpret this data and explain what it means for investors."
-    response = openai.chat.completions.create(
+    response = openai.ChatCompletion.create(
         model="gpt-3.5-turbo",
         messages=[
             {"role": "system", "content": "You are a financial analyst."},
@@ -380,7 +346,7 @@ def analyze_risk(symbol, var_value):
     - Separate paragraphs for "Interpretation of VaR", "Operational Risks", and "Interest Rate Risks".
     - Each paragraph should be well-structured with bold headers and easy to read.
     """
-    response = openai.chat.completions.create(
+    response = openai.ChatCompletion.create(
         model="gpt-3.5-turbo",
         messages=[
             {"role": "system", "content": "You are a financial analyst."},
