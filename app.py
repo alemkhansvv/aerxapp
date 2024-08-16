@@ -41,6 +41,9 @@ def create_app():
     db.init_app(app)
     Migrate(app, db)
 
+    # Регистрация enumerate как глобальной переменной Jinja2
+    app.jinja_env.globals.update(enumerate=enumerate)
+
     # Создание таблицы базы данных
     with app.app_context():
         db.create_all()
