@@ -262,11 +262,14 @@ def plot_historical_prices(historical_data):
             ),
             rangeslider=dict(visible=True),
             type="date"
-        )
+        ),
+        autosize=True,  # Автоматически устанавливает размер графика
+        height=500,     # Высота графика
     )
 
     graph_html = fig.to_html(full_html=False)
     return graph_html
+
 
 def format_financial_data(financial_data):
     formatted_data = {}

@@ -98,6 +98,7 @@
             padding: 20px;
             color: black;
             width: calc(100% - 300px); /* Устанавливаем контейнер на всю ширину экрана за вычетом сайдбара */
+            max-width: 100%;
             margin-left: 300px; /* Сдвигаем контейнер, чтобы избежать наложения на сайдбар */
             box-sizing: border-box; /* Гарантирует, что padding учитывается в ширине */
         }
@@ -194,6 +195,7 @@
             padding: 20px;
             box-shadow: 0px 4px 10px rgba(0, 0, 0, 0.1);
             margin-bottom: 20px;
+            width: 100%;
         }
 
         .btn-custom {
@@ -211,6 +213,65 @@
             background-color: #333333;
             transform: scale(1.05);
         }
+
+        .news-container {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); /* Несколько колонок */
+    gap: 20px; /* Расстояние между карточками */
+}
+
+.news-item {
+    display: flex;
+    background-color: #ffffff;
+    padding: 15px;
+    border-radius: 10px;
+    margin-bottom: 20px;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+    transition: transform 0.2s ease, box-shadow 0.2s ease;
+    align-items: center; /* Центрирование содержимого по вертикали */
+}
+
+.news-item:hover {
+    transform: translateY(-5px);
+    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
+}
+
+.news-image {
+    width: 150px;
+    height: 100px;
+    object-fit: cover; /* Изображение сохраняет пропорции и заполняет блок */
+    border-radius: 10px;
+    margin-right: 15px;
+}
+
+.news-content {
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
+    max-width: calc(100% - 150px); /* Оставляем место для изображения */
+}
+
+.news-content strong {
+    font-size: 18px;
+    color: #333;
+}
+
+.news-content p {
+    font-size: 14px;
+    color: #666;
+    margin-bottom: 10px;
+}
+
+.news-content a {
+    font-size: 14px;
+    color: #007bff;
+    text-decoration: none;
+}
+
+.news-content a:hover {
+    text-decoration: underline;
+}
+
 
     </style>
     <script type="text/javascript" src="https://www.gstatic.com/charts/loader.js"></script>
@@ -266,6 +327,17 @@
             dashboard.bind(chartRangeFilter, chart);
             dashboard.draw(data);
         }
+
+         // Добавляем обработчик события на полную загрузку страницы
+    window.onload = function() {
+        drawChart(); // Перерисовываем график после полной загрузки страницы
+    };
+
+    // А также можно добавить эту функцию для перерисовки графика при изменении размеров окна браузера
+    window.onresize = function() {
+        drawChart(); // Перерисовываем график при изменении размеров окна
+    };
+
     </script>
 </head>
 <body>
@@ -337,17 +409,23 @@
             </div>
         </div>
         <div id="latest-news" class="tab-content {% if active_tab != 'latest-news' %}d-none{% endif %}">
-            <h2>Latest News</h2>
-            <ul class="list-group">
-                {% for article in news %}
-                <li class="list-group-item">
-                    <strong>{{ article['title'] }}</strong> - {{ article['published_at'] }}
-                    <p>{{ article['description'] }}</p>
-                    <a href="{{ article['url'] }}" target="_blank">Link</a>
-                </li>
-                {% endfor %}
-            </ul>
+    <h2>Latest News</h2>
+    <div class="news-container">
+        {% for article in news %}
+        <div class="news-item">
+            {% if article.image_url %}
+            <img src="{{ article.image_url }}" alt="News Image" class="news-image">
+            {% endif %}
+            <div class="news-content">
+                <strong>{{ article['title'] }}</strong> - {{ article['published_at'] }}
+                <p>{{ article['description'] }}</p>
+                <a href="{{ article['url'] }}" target="_blank">Link</a>
+            </div>
         </div>
+        {% endfor %}
+    </div>
+</div>
+
         <div id="financials" class="tab-content {% if active_tab != 'financials' %}d-none{% endif %}">
             <h2>Financials</h2>
             <h3>Balance Sheet</h3>

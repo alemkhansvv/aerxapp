@@ -51,11 +51,13 @@ def get_news(symbol):
             summary = article.get('summary', '')
             link = article['link']
             published_at = datetime.fromtimestamp(article['providerPublishTime']).strftime('%Y-%m-%d %H:%M:%S')
+            image_url = article.get('thumbnail', {}).get('resolutions', [{}])[0].get('url', '')  # Пытаемся извлечь URL изображения
             news_list.append({
                 'title': title,
                 'description': summary,
                 'published_at': published_at,
-                'url': link
+                'url': link,
+                'image_url': image_url  # Добавляем URL изображения в список
             })
         return news_list
     except Exception as e:
