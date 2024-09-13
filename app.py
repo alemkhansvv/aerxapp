@@ -69,12 +69,8 @@ def round_and_comma(value, decimals=2):
         return value
     return "{:,}".format(value)
 
-# Ваши API-ключи для Finnhub
 FINNHUB_API_KEY = os.getenv("FINNHUB_API_KEY")
-
-# Установка API ключа OpenAI
 openai.api_key = os.getenv("OPENAI_API_KEY")
-
 app.secret_key = os.getenv("SECRET_KEY", "default_secret_key")
 
 @app.route('/register', methods=['POST'])
@@ -142,9 +138,6 @@ def contact():
     country = request.form['country']
     email = request.form['email']
     message = request.form['message']
-
-    # Добавьте здесь логику для обработки сообщения
-    # Например, сохранить данные в базу данных или отправить их по электронной почте
 
     flash('Your message has been sent successfully!', 'success')
     return redirect(url_for('welcome'))
