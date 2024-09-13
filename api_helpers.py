@@ -51,13 +51,13 @@ def get_news(symbol):
             summary = article.get('summary', '')
             link = article['link']
             published_at = datetime.fromtimestamp(article['providerPublishTime']).strftime('%Y-%m-%d %H:%M:%S')
-            image_url = article.get('thumbnail', {}).get('resolutions', [{}])[0].get('url', '')  # Пытаемся извлечь URL изображения
+            image_url = article.get('thumbnail', {}).get('resolutions', [{}])[0].get('url', '')
             news_list.append({
                 'title': title,
                 'description': summary,
                 'published_at': published_at,
                 'url': link,
-                'image_url': image_url  # Добавляем URL изображения в список
+                'image_url': image_url
             })
         return news_list
     except Exception as e:
@@ -181,7 +181,6 @@ def get_investment_opinion(financial_analysis, volatility_analysis, risk_analysi
     )
     analysis = response.choices[0].message.content.strip()
 
-    # Исправление форматирования для рекомендации
     formatted_opinion = analysis.replace("**hold**", "**hold**").replace("**buy**", "**buy**").replace("**sell**", "**sell**")
     return formatted_opinion
 
